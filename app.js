@@ -245,6 +245,18 @@ async function openCameraModal(facingMode, previewId, inputId) {
     currentCameraTargetPreviewId = previewId;
     currentCameraTargetInputId = inputId;
 
+    // 1. Check if getUserMedia is supported
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+    // 2. If not supported or problematic environment, fallback to native camera app IMMEDIATELY
+    if (!hasMediaDevices) {
+        console.warn("getUserMedia not supported, falling back to native input");
+        document.getElementById(inputId).click();
+        return;
+    }
+
     document.getElementById('cameraModal').classList.add('active');
 
     // Dynamic labels
@@ -290,8 +302,14 @@ async function openCameraModal(facingMode, previewId, inputId) {
         }
     } catch (err) {
         console.error("Error accessing camera:", err);
-        // NO AUTO-FALLBACK here to prevent flickering. 
-        // User has the manual button to switch to album.
+
+        // Final fallback: If ERROR in modal, close it and open native camera
+        if (isAndroid || !isIOS) {
+            closeCameraModal();
+            setTimeout(() => {
+                document.getElementById(inputId).click();
+            }, 100);
+        }
     }
 }
 
@@ -639,45 +657,66 @@ function generateReceipt() {
 }
 
 async function exportReceipt() {
-    const element = document.getElementById('receiptDocument');
+    if (!currentReceiptData) {
+        showError('กรุณาค้นหาข้อมูลพนักงานก่อน');
+        return;
+    }
 
-    // Prepare for export
-    element.classList.add('export-mode');
+    const amount = document.getElementById('paymentAmount').value;
+    const customDate = document.getElementById('receiptDateInput').value;
 
-    const opt = {
-        margin: [0, 0, 0, 0], // Zero margin for true pixel-to-A4 mapping
-        filename: `receipt_${Date.now()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            scrollY: 0,
-            width: 794,
-            windowWidth: 794
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all'] }
-    };
+    if (!amount || parseFloat(amount) <= 0) {
+        showError('กรุณากรอกจำนวนเงิน');
+        return;
+    }
+
+    const btn = document.querySelector('.btn-export');
+    btn.innerHTML = '<i data-lucide="loader"></i> กำลังสร้าง PDF...';
+    btn.disabled = true;
+    lucide.createIcons();
 
     try {
-        const btn = document.querySelector('.btn-export');
-        btn.innerHTML = '<i data-lucide="loader"></i> Creating PDF...';
-        btn.disabled = true;
+        // Create a form to POST data
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = CONFIG.API_URL;
+        form.target = '_blank';
 
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Add form fields
+        const fields = {
+            action: 'generateReceiptPDF',
+            apiKey: CONFIG.API_KEY,
+            fullName: currentReceiptData.fullName,
+            bankName: currentReceiptData.bankName,
+            accountNumber: currentReceiptData.accountNumber,
+            amount: parseFloat(amount),
+            customDate: customDate || '',
+            idCardPhotoUrl: currentReceiptData.idCardPhotoUrl || ''
+        };
 
-        await html2pdf().set(opt).from(element).save();
+        for (const [key, value] of Object.entries(fields)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
 
-        showSuccess('Download Complete!', 'The PDF has been saved.');
+        // Submit form
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        showSuccess('กำลังเปิดเอกสาร...', 'กรุณารอสักครู่');
     } catch (error) {
-        console.error(error);
-        showError('Could not generate PDF');
+        console.error('PDF Export Error:', error);
+        showError('ไม่สามารถสร้าง PDF ได้');
     } finally {
-        element.classList.remove('export-mode');
-        const btn = document.querySelector('.btn-export');
-        btn.innerHTML = '<i data-lucide="download"></i> Save as PDF';
-        btn.disabled = false;
-        lucide.createIcons();
+        setTimeout(() => {
+            btn.innerHTML = '<i data-lucide="download"></i> บันทึกเป็น PDF';
+            btn.disabled = false;
+            lucide.createIcons();
+        }, 2000);
     }
 }
 
