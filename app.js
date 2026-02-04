@@ -51,10 +51,28 @@ let selectedSupplier = null;
 let currentCheckInData = null;
 let currentReceiptData = null;
 
+// Photo state - CRITICAL for iOS/Android compatibility
+let capturedPhotos = {
+    selfiePreview: null,
+    idCardPreview: null,
+    checkoutSelfiePreview: null
+};
+
 // Camera state
 let cameraStream = null;
 let currentCameraTargetPreviewId = null;
 let currentCameraTargetInputId = null;
+
+// ===================================
+// UI Utilities
+// ===================================
+function showLoading(show) {
+    const loader = document.getElementById('loadingOverlay');
+    if (loader) {
+        if (show) loader.classList.remove('hidden');
+        else loader.classList.add('hidden');
+    }
+}
 
 // ===================================
 // Initialize App
@@ -362,21 +380,21 @@ async function previewPhoto(input, previewId) {
             const originalFile = input.files[0];
             const compressedFile = await compressImage(originalFile);
 
-            // Update input files with compressed version
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(compressedFile);
-            input.files = dataTransfer.files;
+            // Store in global object instead of trying to write back to input.files (which fails on iOS)
+            capturedPhotos[previewId] = compressedFile;
 
             const reader = new FileReader();
             reader.onload = function (e) {
                 const preview = document.getElementById(previewId);
-                preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-                preview.classList.add('has-image');
+                if (preview) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    preview.classList.add('has-image');
+                }
             };
             reader.readAsDataURL(compressedFile);
         } catch (error) {
             console.error("Compression error:", error);
-            showErrorModal("ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่");
+            showError("ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่");
         } finally {
             showLoading(false);
         }
@@ -476,6 +494,8 @@ function closeCameraModal() {
 function takePicture() {
     const video = document.getElementById('cameraVideo');
     const canvas = document.getElementById('cameraCanvas');
+    if (!video || !canvas) return;
+
     const context = canvas.getContext('2d');
 
     // Canvas size = Video natural size to prevent stretching
@@ -492,17 +512,19 @@ function takePicture() {
         // Compress the captured image
         const compressedFile = await compressImage(file);
 
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(compressedFile);
-        const input = document.getElementById(currentCameraTargetInputId);
-        input.files = dataTransfer.files;
+        // Store in global object
+        if (currentCameraTargetPreviewId) {
+            capturedPhotos[currentCameraTargetPreviewId] = compressedFile;
+        }
 
         // Preview the compressed image
         const reader = new FileReader();
         reader.onload = function (e) {
             const preview = document.getElementById(currentCameraTargetPreviewId);
-            preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-            preview.classList.add('has-image');
+            if (preview) {
+                preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                preview.classList.add('has-image');
+            }
         };
         reader.readAsDataURL(compressedFile);
 
@@ -516,6 +538,10 @@ function takePicture() {
 function resetCheckInForm() {
     const form = document.getElementById('checkInForm');
     if (form) form.reset();
+
+    // Reset global photo state
+    capturedPhotos.selfiePreview = null;
+    capturedPhotos.idCardPreview = null;
 
     // Reset photo previews
     const selfiePreview = document.getElementById('selfiePreview');
@@ -543,12 +569,12 @@ async function submitCheckIn(event) {
     const accountNumber = document.getElementById('accountNumber').value;
 
     if (!/^0[0-9]{9}$/.test(phone)) {
-        showErrorModal("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (10 หลัก เริ่มด้วย 0)");
+        showError("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (10 หลัก เริ่มด้วย 0)");
         return;
     }
 
     if (!/^[0-9]{8,15}$/.test(accountNumber)) {
-        showErrorModal("กรุณากรอกเลขบัญชีให้ถูกต้อง (8-15 หลัก ตัวเลขเท่านั้น)");
+        showError("กรุณากรอกเลขบัญชีให้ถูกต้อง (8-15 หลัก ตัวเลขเท่านั้น)");
         return;
     }
 
@@ -562,7 +588,7 @@ async function submitCheckIn(event) {
     // Check Geo-fencing
     const geoCheck = checkGeoFence(selectedWarehouse, gpsLocation);
     if (!geoCheck.success) {
-        showErrorModal(geoCheck.message);
+        showError(geoCheck.message);
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i data-lucide="check-circle"></i> บันทึกเข้างาน';
         lucide.createIcons();
@@ -577,17 +603,12 @@ async function submitCheckIn(event) {
         const accountNumber = document.getElementById('accountNumber').value.trim();
         const gpsLocation = document.getElementById('gpsLocation').value;
 
-        // Check both Camera and Gallery inputs
-        const selfieCam = document.getElementById('selfieInputCam');
-        const selfieGal = document.getElementById('selfieInputGal');
-        const idCardCam = document.getElementById('idCardInputCam');
-        const idCardGal = document.getElementById('idCardInputGal');
-
-        const selfieFile = selfieCam.files[0] || selfieGal.files[0];
-        const idCardFile = idCardCam.files[0] || idCardGal.files[0];
+        // Check both Camera and Gallery inputs - Updated to use capturedPhotos
+        const selfieFile = capturedPhotos['selfiePreview'];
+        const idCardFile = capturedPhotos['idCardPreview'];
 
         if (!selfieFile || !idCardFile) throw new Error('กรุณาถ่ายรูปให้ครบ');
-        if (!gpsLocation) throw new Error('กรุณาเปิด GPS');
+        if (!gpsLocation) throw new Error('กรุณาเปิด GPS และรอจนกว่าตำแหน่งจะขึ้น');
 
         const selfieBase64 = await getBase64(selfieFile);
         const idCardBase64 = await getBase64(idCardFile);
@@ -662,17 +683,21 @@ async function submitCheckIn(event) {
 // Check-Out Functions
 // ===================================
 function resetCheckOutForm() {
-    document.getElementById('searchPhone').value = '';
-    document.getElementById('checkInResult').classList.add('hidden');
-    document.getElementById('checkOutForm').classList.add('hidden');
+    const form = document.getElementById('checkOutForm');
+    if (form) form.reset();
 
-    // Reset photo preview
+    // Reset global photo state
+    capturedPhotos.checkoutSelfiePreview = null;
+
     const preview = document.getElementById('checkoutSelfiePreview');
     if (preview) {
         preview.innerHTML = `<i data-lucide="user-circle"></i><span>ยังไม่มีรูป</span>`;
         preview.classList.remove('has-image');
     }
 
+    document.getElementById('checkInResult').classList.add('hidden');
+    document.getElementById('checkOutForm').classList.add('hidden');
+    document.getElementById('checkOutRowId').value = '';
     currentCheckInData = null;
     lucide.createIcons();
 }
@@ -720,11 +745,8 @@ async function submitCheckOut(event) {
     lucide.createIcons();
 
     try {
-        // Check both Camera and Gallery inputs
-        const selfieCam = document.getElementById('checkoutSelfieInputCam');
-        const selfieGal = document.getElementById('checkoutSelfieInputGal');
-
-        const selfieFile = selfieCam.files[0] || selfieGal.files[0];
+        // Use capturedPhotos global object
+        const selfieFile = capturedPhotos['checkoutSelfiePreview'];
 
         if (!selfieFile) {
             throw new Error('กรุณาถ่ายรูป Selfie ออกงาน');
