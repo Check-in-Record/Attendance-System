@@ -246,28 +246,30 @@ async function openCameraModal(facingMode, previewId, inputId) {
     currentCameraTargetInputId = inputId;
 
     document.getElementById('cameraModal').classList.add('active');
+    const overlay = document.querySelector('.camera-overlay');
+    if (facingMode === 'user') {
+        overlay.classList.add('selfie-mode');
+    } else {
+        overlay.classList.remove('selfie-mode');
+    }
 
     try {
         const constraints = {
             video: {
-                facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
+                facingMode: facingMode === 'user' ? 'user' : 'environment',
+                width: { ideal: 1920 }, // High quality
+                height: { ideal: 1080 }
             },
             audio: false
         };
 
-        // Try with ideal resolution first
         try {
-            cameraStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: facingMode === 'user' ? 'user' : 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            });
+            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (e) {
             console.warn("Failed with ideal resolution, trying basic constraints", e);
-            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: facingMode === 'user' ? 'user' : 'environment' }
+            });
         }
 
         const video = document.getElementById('cameraVideo');
@@ -278,8 +280,11 @@ async function openCameraModal(facingMode, previewId, inputId) {
         }
     } catch (err) {
         console.error("Error accessing camera:", err);
-        showError(`ไม่สามารถเข้าถึงกล้องได้: ${err.message}\nกรุณาตรวจสอบการอนุญาตเข้าถึงกล้อง`);
+        // --- AUTO FALLBACK ---
+        console.log("Switching to native file input due to camera error");
         closeCameraModal();
+        const fallbackInput = document.getElementById(currentCameraTargetInputId);
+        if (fallbackInput) fallbackInput.click();
     }
 }
 
@@ -296,27 +301,25 @@ function takePicture() {
     const canvas = document.getElementById('cameraCanvas');
     const context = canvas.getContext('2d');
 
-    // Set canvas size to video size
+    // Canvas size = Video natural size to prevent stretching
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // Draw frame
+    // Draw video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to blob/file
+    // Convert to high quality JPEG
     canvas.toBlob((blob) => {
-        const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+        const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
 
-        // Manual trigger preview
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         const input = document.getElementById(currentCameraTargetInputId);
         input.files = dataTransfer.files;
 
         previewPhoto(input, currentCameraTargetPreviewId);
-
         closeCameraModal();
-    }, 'image/jpeg', 0.8);
+    }, 'image/jpeg', 0.9);
 }
 
 // ===================================
