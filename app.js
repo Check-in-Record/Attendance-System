@@ -246,11 +246,20 @@ async function openCameraModal(facingMode, previewId, inputId) {
     currentCameraTargetInputId = inputId;
 
     document.getElementById('cameraModal').classList.add('active');
+
+    // Dynamic labels
+    const title = document.querySelector('#cameraModal h3');
+    const hint = document.querySelector('.camera-hint');
     const overlay = document.querySelector('.camera-overlay');
+
     if (facingMode === 'user') {
         overlay.classList.add('selfie-mode');
+        if (title) title.textContent = 'ถ่ายรูปยืนยันตัวตน (Selfie)';
+        if (hint) hint.textContent = 'วางใบหน้าให้ตรงกลางและกดปุ่มถ่ายรูป';
     } else {
         overlay.classList.remove('selfie-mode');
+        if (title) title.textContent = 'ถ่ายรูปบัตรประชาชน';
+        if (hint) hint.textContent = 'วางบัตรให้พอดีกับกรอบและกดปุ่มถ่ายรูป';
     }
 
     try {
@@ -280,11 +289,17 @@ async function openCameraModal(facingMode, previewId, inputId) {
         }
     } catch (err) {
         console.error("Error accessing camera:", err);
-        // --- AUTO FALLBACK ---
-        console.log("Switching to native file input due to camera error");
         closeCameraModal();
+
+        // --- ENHANCED FALLBACK ---
+        // If permission denied or other error, try to use native input
         const fallbackInput = document.getElementById(currentCameraTargetInputId);
-        if (fallbackInput) fallbackInput.click();
+        if (fallbackInput) {
+            console.log("Auto-triggering native file input fallback");
+            fallbackInput.click();
+        } else {
+            showError(`ไม่สามารถเข้าถึงกล้องได้: ${err.message}`);
+        }
     }
 }
 
