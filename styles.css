@@ -45,6 +45,21 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Dark Theme Variables */
+body.dark-theme {
+    --bg: #0F172A;
+    --surface: #1E293B;
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+    --text-light: #64748B;
+    --border: #334155;
+    --border-light: #1E293B;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+}
+
 /* Reset */
 * {
     margin: 0;
@@ -105,6 +120,23 @@ body {
     min-height: 100vh;
     background: var(--surface);
     position: relative;
+    transition: var(--transition);
+}
+
+/* Wide Mode for Notebooks/Desktops */
+@media (min-width: 1024px) {
+    .app-container.wide-mode {
+        max-width: 1100px;
+    }
+
+    .app-container.wide-mode .form-container {
+        padding: 40px;
+    }
+
+    /* Multi-column grid for Stats in Wide Mode */
+    .app-container.wide-mode .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 /* Warehouse Selection */
@@ -291,10 +323,34 @@ body {
     height: 28px;
 }
 
-.header-time {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 14px;
-    font-weight: 500;
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.theme-toggle-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.theme-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.theme-toggle-btn i {
+    width: 20px;
+    height: 20px;
 }
 
 /* Screens */
@@ -569,6 +625,23 @@ input::placeholder {
 }
 
 /* Photo Groups */
+/* Responsive Adjustments for Graphs in Wide Mode */
+@media (min-width: 1024px) {
+    .wide-mode .charts-container {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .wide-mode .admin-dashboard.hidden {
+        display: none;
+    }
+
+    /* Fixed table height for large screens to avoid excessive scrolling */
+    .wide-mode .table-container {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+}
+
 /* Camera Modal Styles */
 .camera-modal-container {
     background: #000;
@@ -1224,86 +1297,48 @@ input::placeholder {
     margin-bottom: 8px !important;
 }
 
-/* Admin Table */
-.table-header {
+/* Admin Navigation & Entry */
+.admin-entry-section {
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 1px dashed var(--border);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
+    justify-content: center;
 }
 
-.table-header .section-title {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
-}
-
-.table-container {
-    overflow-x: auto;
-    border-radius: var(--radius-md);
+.btn-management {
+    background: var(--surface);
     border: 1px solid var(--border);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    min-width: 500px;
-}
-
-thead {
-    background: var(--bg);
-}
-
-th {
-    padding: 12px;
-    text-align: left;
-    font-weight: 600;
-    color: var(--text-muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-}
-
-td {
-    padding: 12px;
-    border-bottom: 1px solid var(--border-light);
-    vertical-align: middle;
-}
-
-tbody tr:hover {
-    background: var(--bg);
-}
-
-.no-data {
-    text-align: center;
-    color: var(--text-muted);
-    padding: 40px 12px !important;
-}
-
-/* Status Badge */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
+    padding: 14px 24px;
     border-radius: var(--radius-full);
-    font-size: 11px;
+    color: var(--text-muted);
+    font-size: 14px;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: var(--transition);
 }
 
-.status-badge.working {
-    background: var(--warning-light);
-    color: var(--warning);
+.btn-management:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-2px);
 }
 
-.status-badge.completed {
-    background: var(--success-light);
-    color: var(--success);
+.btn-management i {
+    width: 18px;
+    height: 18px;
 }
 
-/* Modals */
+.screen-header.no-border {
+    border-bottom: none;
+    background: transparent;
+    padding-left: 0;
+}
+
 .modal {
     position: fixed;
     top: 0;

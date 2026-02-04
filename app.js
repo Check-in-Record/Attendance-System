@@ -30,7 +30,17 @@ const CONFIG = {
     SHEET_ID: '1oKYvdnFBMzaoX54SZLb3xhG2nm_-XIRJNluGdpKzkyk',
 
     // API Secret Key - ต้องตรงกับใน Code.gs
-    API_KEY: 'FreshketHR2024'
+    API_KEY: 'FreshketHR2024',
+
+    // Warehouse Coordinates (Geo-fencing)
+    WAREHOUSES: {
+        'ไอยรา': { lat: 14.07, lng: 100.63, radius: 500 }, // รัศมี 500 เมตร
+        'อาจณรงค์': { lat: 13.71, lng: 100.58, radius: 500 },
+        'ลาดกระบัง': { lat: 13.72, lng: 100.78, radius: 1000 } // ลาดกระบังอาจจะใหญ่กว่า
+    },
+
+    // Admin Password สำหรับหน้าสร้างเอกสารและหน้าแอดมิน
+    ADMIN_PASSWORD: '2024'
 };
 
 // ===================================
@@ -67,7 +77,36 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(() => {
         document.getElementById('loadingOverlay').classList.add('hidden');
     }, 500);
+
+    // Initialize Theme
+    initTheme();
 });
+
+// ===================================
+// Theme Functions
+// ===================================
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const themeToggle = document.getElementById('themeToggle');
+
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        if (themeToggle) {
+            themeToggle.innerHTML = '<i data-lucide="sun"></i>';
+            lucide.createIcons();
+        }
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-theme');
+            const isDark = document.body.classList.contains('dark-theme');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeToggle.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}"></i>`;
+            lucide.createIcons();
+        });
+    }
+}
 
 // ===================================
 // Clock Functions
@@ -120,20 +159,37 @@ function showWarehouseSelection() {
     showScreen('warehouseSelection');
 }
 
+function requestAdminAccess(screenId) {
+    const password = prompt('กรุณากรอกรหัสผ่านผู้ดูแลระบบเพื่อเข้าถึงเมนูนี้:');
+    if (password === CONFIG.ADMIN_PASSWORD) {
+        showScreen(screenId);
+    } else if (password !== null) {
+        showError('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+    }
+}
+
 function showScreen(screenId) {
     // Hide all screens
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.remove('active');
     });
 
+    // Handle Wide Mode for Admin and Receipt screen
+    const appContainer = document.querySelector('.app-container');
+    if (screenId === 'adminScreen' || screenId === 'receiptScreen') {
+        appContainer.classList.add('wide-mode');
+    } else {
+        appContainer.classList.remove('wide-mode');
+    }
+
     // Show target screen
     const targetScreen = document.getElementById(screenId);
     if (targetScreen) {
         targetScreen.classList.add('active');
+        window.scrollTo(0, 0);
+        // Re-init icons
+        lucide.createIcons();
     }
-
-    // Re-init icons
-    lucide.createIcons();
 
     // Special actions for specific screens
     if (screenId === 'checkInScreen') {
@@ -144,6 +200,46 @@ function showScreen(screenId) {
     } else if (screenId === 'adminScreen') {
         loadAttendanceData();
     }
+}
+
+// ===================================
+// Geo-fencing Functions
+// ===================================
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Earth radius in meters
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+    const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+        Math.cos(phi1) * Math.cos(phi2) *
+        Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // In meters
+}
+
+function checkGeoFence(warehouseName, userLocationStr) {
+    if (!userLocationStr) return { success: false, message: "ไม่พบข้อมูล GPS" };
+
+    const parts = userLocationStr.split(',');
+    const userLat = parseFloat(parts[0]);
+    const userLng = parseFloat(parts[1]);
+
+    const warehouse = CONFIG.WAREHOUSES[warehouseName];
+    if (!warehouse) return { success: true }; // No geo-fence defined
+
+    const distance = getDistance(userLat, userLng, warehouse.lat, warehouse.lng);
+
+    if (distance > warehouse.radius) {
+        return {
+            success: false,
+            message: `คุณอยู่ห่างจากคลังสินค้ามากเกินไป (ระยะห่าง: ${Math.round(distance)} เมตร) กรุณาลงเวลาในพื้นที่ที่กำหนด`
+        };
+    }
+
+    return { success: true };
 }
 
 // ===================================
@@ -216,18 +312,74 @@ function updateGPSStatus(status, message) {
 // ===================================
 // Photo Functions
 // ===================================
-function previewPhoto(input, previewId) {
-    const preview = document.getElementById(previewId);
-
-    if (input.files && input.files[0]) {
+// Image compression function
+async function compressImage(file, maxWidth = 1024, quality = 0.7) {
+    return new Promise((resolve) => {
         const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
 
-        reader.onload = function (e) {
-            preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-            preview.classList.add('has-image');
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxWidth) {
+                        width *= maxWidth / height;
+                        height = maxWidth;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    const compressedFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    resolve(compressedFile);
+                }, 'image/jpeg', quality);
+            };
         };
+    });
+}
 
-        reader.readAsDataURL(input.files[0]);
+// Preview photo and handle compression
+async function previewPhoto(input, previewId) {
+    if (input.files && input.files[0]) {
+        showLoading(true);
+        try {
+            const originalFile = input.files[0];
+            const compressedFile = await compressImage(originalFile);
+
+            // Update input files with compressed version
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(compressedFile);
+            input.files = dataTransfer.files;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const preview = document.getElementById(previewId);
+                preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                preview.classList.add('has-image');
+            };
+            reader.readAsDataURL(compressedFile);
+        } catch (error) {
+            console.error("Compression error:", error);
+            showErrorModal("ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่");
+        } finally {
+            showLoading(false);
+        }
     }
 }
 
@@ -334,15 +486,26 @@ function takePicture() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     // Convert to high quality JPEG
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
         const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
 
+        // Compress the captured image
+        const compressedFile = await compressImage(file);
+
         const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
+        dataTransfer.items.add(compressedFile);
         const input = document.getElementById(currentCameraTargetInputId);
         input.files = dataTransfer.files;
 
-        previewPhoto(input, currentCameraTargetPreviewId);
+        // Preview the compressed image
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const preview = document.getElementById(currentCameraTargetPreviewId);
+            preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            preview.classList.add('has-image');
+        };
+        reader.readAsDataURL(compressedFile);
+
         closeCameraModal();
     }, 'image/jpeg', 0.9);
 }
@@ -371,13 +534,40 @@ function resetCheckInForm() {
     lucide.createIcons();
 }
 
+// Check-In Logic
 async function submitCheckIn(event) {
     event.preventDefault();
+
+    // Validation
+    const phone = document.getElementById('phone').value;
+    const accountNumber = document.getElementById('accountNumber').value;
+
+    if (!/^0[0-9]{9}$/.test(phone)) {
+        showErrorModal("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (10 หลัก เริ่มด้วย 0)");
+        return;
+    }
+
+    if (!/^[0-9]{8,15}$/.test(accountNumber)) {
+        showErrorModal("กรุณากรอกเลขบัญชีให้ถูกต้อง (8-15 หลัก ตัวเลขเท่านั้น)");
+        return;
+    }
 
     const submitBtn = document.getElementById('checkInSubmitBtn');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i data-lucide="loader"></i> กำลังบันทึก...';
     lucide.createIcons();
+
+    const gpsLocation = document.getElementById('gpsLocation').value;
+
+    // Check Geo-fencing
+    const geoCheck = checkGeoFence(selectedWarehouse, gpsLocation);
+    if (!geoCheck.success) {
+        showErrorModal(geoCheck.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i data-lucide="check-circle"></i> บันทึกเข้างาน';
+        lucide.createIcons();
+        return;
+    }
 
     try {
         // ... (Validate Inputs Code - Same as before) ...
@@ -597,6 +787,11 @@ async function submitCheckOut(event) {
 async function searchForReceipt() {
     const phone = document.getElementById('receiptSearchPhone').value.trim();
 
+    if (!selectedWarehouse) {
+        showError('กรุณาเลือกคลังสินค้าก่อนค้นหา');
+        return;
+    }
+
     if (!phone) {
         showError('กรุณากรอกเบอร์โทรศัพท์');
         return;
@@ -608,6 +803,16 @@ async function searchForReceipt() {
 
         if (result.success && result.data) {
             currentReceiptData = result.data;
+            currentWageRates = result.wageRates || {}; // Update rates
+
+            // Auto-fill price based on supplier
+            const rate = currentWageRates[currentReceiptData.supplier];
+            if (rate) {
+                document.getElementById('paymentAmount').value = rate;
+            } else {
+                document.getElementById('paymentAmount').value = '';
+            }
+
             document.getElementById('receiptGenerator').classList.remove('hidden');
         } else {
             showError('ไม่พบข้อมูล');
@@ -721,69 +926,11 @@ async function exportReceipt() {
 }
 
 // ===================================
-// Admin Functions
+// Shared Data
 // ===================================
-async function loadAttendanceData() {
-    const filterDate = document.getElementById('filterDate').value;
-    const tableBody = document.getElementById('attendanceTableBody');
+let currentWageRates = {}; // Store wage rates globally
 
-    tableBody.innerHTML = '<tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr>';
-
-    try {
-        const response = await fetch(`${CONFIG.API_URL}?action=getAttendance&apiKey=${CONFIG.API_KEY}&warehouse=${encodeURIComponent(selectedWarehouse)}&date=${filterDate}`);
-        const result = await response.json();
-
-        if (result.success) {
-            if (result.data && result.data.length > 0) {
-                tableBody.innerHTML = result.data.map(row => `
-                    <tr>
-                        <td>${row.fullName}</td>
-                        <td>${row.phone}</td>
-                        <td>${row.checkInTime}</td>
-                        <td>${row.checkOutTime || '-'}</td>
-                        <td>
-                            <span class="status-badge ${row.checkOutTime ? 'completed' : 'working'}">
-                                ${row.checkOutTime ? 'ออกแล้ว' : 'กำลังทำงาน'}
-                            </span>
-                        </td>
-                    </tr>
-                `).join('');
-            } else {
-                tableBody.innerHTML = '<tr><td colspan="5" class="no-data">ยังไม่มีข้อมูลในวันที่เลือก</td></tr>';
-            }
-        } else {
-            tableBody.innerHTML = `<tr><td colspan="5" class="no-data">ข้อผิดพลาด: ${result.error || 'ไม่ทราบสาเหตุ'}</td></tr>`;
-        }
-    } catch (error) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="no-data">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</td></tr>';
-    }
-}
-
-function exportToCSV() {
-    const table = document.getElementById('attendanceTable');
-    const rows = table.querySelectorAll('tr');
-
-    let csv = [];
-
-    rows.forEach(row => {
-        const cols = row.querySelectorAll('th, td');
-        const rowData = [];
-        cols.forEach(col => {
-            rowData.push('"' + col.textContent.trim().replace(/"/g, '""') + '"');
-        });
-        csv.push(rowData.join(','));
-    });
-
-    const csvContent = '\uFEFF' + csv.join('\n'); // UTF-8 BOM for Thai
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-
-    link.href = URL.createObjectURL(blob);
-    link.download = `attendance_${document.getElementById('filterDate').value}.csv`;
-    link.click();
-
-    showSuccess('Export สำเร็จ!', 'ไฟล์ CSV ถูกดาวน์โหลดแล้ว');
-}
+// ===================================
 
 // ===================================
 // Modal Functions

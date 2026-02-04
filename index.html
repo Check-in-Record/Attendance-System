@@ -18,8 +18,11 @@
 
     <!-- jsPDF for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#7C3AED">
 </head>
 
 <body>
@@ -39,7 +42,12 @@
                     <i data-lucide="map-pin"></i>
                     <span id="headerWarehouseName">Time Attendance</span>
                 </div>
-                <div class="header-time" id="currentTime"></div>
+                <div class="header-right">
+                    <button id="themeToggle" class="theme-toggle-btn" title="สลับโหมดมืด/สว่าง">
+                        <i data-lucide="moon"></i>
+                    </button>
+                    <div class="header-time" id="currentTime"></div>
+                </div>
             </div>
         </header>
 
@@ -72,6 +80,13 @@
                         </div>
                         <span class="warehouse-label">คลังลาดกระบัง</span>
                         <span class="warehouse-desc">สาขาลาดกระบัง (Lat Krabang)</span>
+                    </button>
+                </div>
+
+                <div class="admin-entry-section">
+                    <button class="btn-management" onclick="requestAdminAccess('adminMenu')">
+                        <i data-lucide="settings"></i>
+                        การจัดการ / แอดมิน
                     </button>
                 </div>
             </div>
@@ -142,21 +157,28 @@
                         <span class="menu-label">ออกงาน</span>
                         <span class="menu-desc">ลงเวลาออกงาน</span>
                     </button>
+                </div>
+            </div>
+        </div>
 
+        <!-- Management Menu Screen (For Admin) -->
+        <div id="adminMenu" class="screen">
+            <div class="menu-container">
+                <div class="screen-header no-border">
+                    <button class="back-btn" onclick="showWarehouseSelection()">
+                        <i data-lucide="arrow-left"></i>
+                    </button>
+                    <h2>การจัดการระบบ</h2>
+                </div>
+                <p class="welcome-subtitle">เมนูสำหรับผู้ดูแลระบบเท่านั้น</p>
+
+                <div class="menu-grid">
                     <button class="menu-card" onclick="showScreen('receiptScreen')">
                         <div class="menu-icon receipt">
                             <i data-lucide="file-text"></i>
                         </div>
                         <span class="menu-label">เอกสารรับเงิน</span>
                         <span class="menu-desc">สร้างใบรับเงิน</span>
-                    </button>
-
-                    <button class="menu-card" onclick="showScreen('adminScreen')">
-                        <div class="menu-icon admin">
-                            <i data-lucide="shield-check"></i>
-                        </div>
-                        <span class="menu-label">ผู้ดูแลระบบ</span>
-                        <span class="menu-desc">จัดการข้อมูล</span>
                     </button>
                 </div>
             </div>
@@ -187,8 +209,8 @@
 
                         <div class="form-group">
                             <label for="phone">เบอร์โทรศัพท์ <span class="required">*</span></label>
-                            <input type="tel" id="phone" name="phone" placeholder="0812345678" pattern="[0-9]{10}"
-                                required>
+                            <input type="tel" id="phone" name="phone" placeholder="0812345678" pattern="0[0-9]{9}"
+                                inputmode="numeric" maxlength="10" required>
                         </div>
                     </div>
 
@@ -218,7 +240,7 @@
                         <div class="form-group">
                             <label for="accountNumber">เลขบัญชี <span class="required">*</span></label>
                             <input type="text" id="accountNumber" name="accountNumber" placeholder="กรอกเลขบัญชี"
-                                required>
+                                pattern="[0-9]*" inputmode="numeric" maxlength="15" required>
                         </div>
                     </div>
 
@@ -435,7 +457,7 @@
         <!-- Receipt Screen -->
         <div id="receiptScreen" class="screen">
             <div class="screen-header">
-                <button class="back-btn" onclick="showScreen('mainMenu')">
+                <button class="back-btn" onclick="showScreen('adminMenu')">
                     <i data-lucide="arrow-left"></i>
                 </button>
                 <h2>เอกสารรับเงิน</h2>
@@ -448,6 +470,16 @@
                         <i data-lucide="search"></i>
                         ค้นหาข้อมูลพนักงาน
                     </h3>
+
+                    <div class="form-group">
+                        <label for="adminWarehouseSelectReceipt">คลังสินค้า</label>
+                        <select id="adminWarehouseSelectReceipt" onchange="selectedWarehouse = this.value">
+                            <option value="">-- กรุณาเลือกคลัง --</option>
+                            <option value="ไอยรา">คลังไอยรา</option>
+                            <option value="อาจณรงค์">คลังอาจณรงค์</option>
+                            <option value="ลาดกระบัง">คลังลาดกระบัง</option>
+                        </select>
+                    </div>
 
                     <div class="form-group">
                         <label for="receiptSearchPhone">เบอร์โทรศัพท์</label>
@@ -537,69 +569,6 @@
             </div>
         </div>
 
-        <!-- Admin Screen -->
-        <div id="adminScreen" class="screen">
-            <div class="screen-header">
-                <button class="back-btn" onclick="showScreen('mainMenu')">
-                    <i data-lucide="arrow-left"></i>
-                </button>
-                <h2>ผู้ดูแลระบบ</h2>
-            </div>
-
-            <div class="form-container">
-                <!-- Date Filter -->
-                <div class="form-section">
-                    <h3 class="section-title">
-                        <i data-lucide="calendar"></i>
-                        กรองตามวันที่
-                    </h3>
-
-                    <div class="form-group">
-                        <label for="filterDate">เลือกวันที่</label>
-                        <input type="date" id="filterDate" onchange="loadAttendanceData()">
-                    </div>
-
-                    <button type="button" class="btn-secondary" onclick="loadAttendanceData()">
-                        <i data-lucide="refresh-cw"></i>
-                        โหลดข้อมูล
-                    </button>
-                </div>
-
-                <!-- Data Table -->
-                <div class="form-section">
-                    <div class="table-header">
-                        <h3 class="section-title">
-                            <i data-lucide="table"></i>
-                            รายการ
-                        </h3>
-                        <button type="button" class="btn-export-small" onclick="exportToCSV()">
-                            <i data-lucide="download"></i>
-                            Export
-                        </button>
-                    </div>
-
-                    <div class="table-container">
-                        <table id="attendanceTable">
-                            <thead>
-                                <tr>
-                                    <th>ชื่อ-นามสกุล</th>
-                                    <th>เบอร์โทร</th>
-                                    <th>เวลาเข้า</th>
-                                    <th>เวลาออก</th>
-                                    <th>สถานะ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="attendanceTableBody">
-                                <tr>
-                                    <td colspan="5" class="no-data">ยังไม่มีข้อมูล</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Custom Camera Modal -->
         <div id="cameraModal" class="modal">
             <div class="camera-modal-container">
@@ -656,6 +625,15 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker failed', err));
+            });
+        }
+    </script>
 </body>
 
 </html>
