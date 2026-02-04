@@ -286,10 +286,11 @@
                                 onchange="previewPhoto(this, 'selfiePreview')" style="display: none;">
 
                             <div class="photo-button-group">
-                                <label for="selfieInputCam" class="btn-camera" style="cursor: pointer;">
+                                <button type="button" class="btn-camera"
+                                    onclick="openCameraModal('user', 'selfiePreview', 'selfieInputCam')">
                                     <i data-lucide="camera"></i>
                                     ถ่ายรูปใหม่
-                                </label>
+                                </button>
                                 <button type="button" class="btn-gallery"
                                     onclick="document.getElementById('selfieInputGal').click()">
                                     <i data-lucide="image"></i>
@@ -313,10 +314,11 @@
                                 onchange="previewPhoto(this, 'idCardPreview')" style="display: none;">
 
                             <div class="photo-button-group">
-                                <label for="idCardInputCam" class="btn-camera" style="cursor: pointer;">
+                                <button type="button" class="btn-camera"
+                                    onclick="openCameraModal('environment', 'idCardPreview', 'idCardInputCam')">
                                     <i data-lucide="camera"></i>
                                     ถ่ายรูปใหม่
-                                </label>
+                                </button>
                                 <button type="button" class="btn-gallery"
                                     onclick="document.getElementById('idCardInputGal').click()">
                                     <i data-lucide="image"></i>
@@ -418,10 +420,11 @@
                                 onchange="previewPhoto(this, 'checkoutSelfiePreview')" style="display: none;">
 
                             <div class="photo-button-group">
-                                <label for="checkoutSelfieInputCam" class="btn-camera" style="cursor: pointer;">
+                                <button type="button" class="btn-camera"
+                                    onclick="openCameraModal('user', 'checkoutSelfiePreview', 'checkoutSelfieInputCam')">
                                     <i data-lucide="camera"></i>
                                     ถ่ายรูปใหม่
-                                </label>
+                                </button>
                                 <button type="button" class="btn-gallery"
                                     onclick="document.getElementById('checkoutSelfieInputGal').click()">
                                     <i data-lucide="image"></i>

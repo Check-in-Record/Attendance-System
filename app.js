@@ -447,7 +447,7 @@ async function openCameraModal(facingMode, previewId, inputId) {
     try {
         const constraints = {
             video: {
-                facingMode: facingMode === 'user' ? 'user' : 'environment'
+                facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' }
             },
             audio: false
         };
@@ -585,14 +585,15 @@ async function submitCheckIn(event) {
 
     const gpsLocation = document.getElementById('gpsLocation').value;
 
-    // Check Geo-fencing
+    // Check Geo-fencing - Warn only
     const geoCheck = checkGeoFence(selectedWarehouse, gpsLocation);
     if (!geoCheck.success) {
-        showError(geoCheck.message);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i data-lucide="check-circle"></i> บันทึกเข้างาน';
-        lucide.createIcons();
-        return;
+        if (!confirm(`${geoCheck.message}\n\nคุณยืนยันที่จะบันทึกการเข้างานในตำแหน่งปัจจุบันหรือไม่?`)) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i data-lucide="check-circle"></i> บันทึกเข้างาน';
+            lucide.createIcons();
+            return;
+        }
     }
 
     try {
