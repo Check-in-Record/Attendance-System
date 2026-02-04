@@ -62,6 +62,7 @@ let capturedPhotos = {
 let cameraStream = null;
 let currentCameraTargetPreviewId = null;
 let currentCameraTargetInputId = null;
+let currentPaymentRowId = null; // New for payment system
 
 // ===================================
 // UI Utilities
@@ -217,6 +218,8 @@ function showScreen(screenId) {
         resetCheckOutForm();
     } else if (screenId === 'adminScreen') {
         loadAttendanceData();
+    } else if (screenId === 'paymentScreen') {
+        initPaymentScreen();
     }
 }
 
@@ -973,6 +976,213 @@ function showError(message) {
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
+}
+
+// ===================================
+// Payment Management Functions
+// ===================================
+function initPaymentScreen() {
+    const filterDate = document.getElementById('paymentFilterDate');
+    const filterWarehouse = document.getElementById('paymentFilterWarehouse');
+
+    // Set default date to today if not set
+    if (!filterDate.value) {
+        filterDate.value = new Date().toISOString().split('T')[0];
+    }
+
+    // Set default warehouse from global selection
+    if (selectedWarehouse && filterWarehouse) {
+        filterWarehouse.value = selectedWarehouse;
+    }
+
+    loadPaymentData();
+}
+
+async function loadPaymentData() {
+    const date = document.getElementById('paymentFilterDate').value;
+    const warehouse = document.getElementById('paymentFilterWarehouse').value;
+    const supplierFilter = document.getElementById('paymentFilterSupplier') ? document.getElementById('paymentFilterSupplier').value : 'ทั้งหมด';
+    const listContainer = document.getElementById('paymentWorkerList');
+
+    if (!date || !warehouse) return;
+
+    listContainer.innerHTML = `
+        <div class="loading-state">
+            <i data-lucide="loader" class="spin"></i>
+            <p>กำลังค้นหาข้อมูล...</p>
+        </div>
+    `;
+    lucide.createIcons();
+
+    try {
+        const response = await fetch(`${CONFIG.API_URL}?action=getAttendance&apiKey=${CONFIG.API_KEY}&date=${date}&warehouse=${encodeURIComponent(warehouse)}`);
+        const result = await response.json();
+
+        if (result.success && result.data && result.data.length > 0) {
+            let workerHtml = '';
+            let matchedCount = 0;
+            let paidCount = 0;
+            let unpaidCount = 0;
+
+            result.data.forEach((worker) => {
+                // Client-side filter for supplier
+                if (supplierFilter !== 'ทั้งหมด' && worker.supplier !== supplierFilter) return;
+
+                matchedCount++;
+                const { fullName, phone, checkInTime, checkOutTime, status, slipUrl, rowIndex, supplier, bankName, accountNumber } = worker;
+                const hasSlip = slipUrl && slipUrl !== '';
+
+                if (hasSlip) paidCount++;
+                else unpaidCount++;
+
+                workerHtml += `
+                    <div class="worker-card ${hasSlip ? 'paid' : ''}">
+                        <div class="worker-info">
+                            <div class="worker-primary">
+                                <span class="worker-name">${fullName}</span>
+                                <span class="worker-status-badge ${status === 'ออกงานแล้ว' ? 'success' : 'warning'}">${status}</span>
+                            </div>
+                            <div class="worker-details">
+                                <span><i data-lucide="phone" class="icon-xs"></i> ${phone}</span>
+                                <span class="bank-details">
+                                    <i data-lucide="credit-card" class="icon-xs"></i> 
+                                    ${bankName} - ${accountNumber}
+                                    <button type="button" class="btn-copy" onclick="copyToClipboard('${accountNumber}', this)">
+                                        <i data-lucide="copy" class="icon-xs"></i>
+                                    </button>
+                                </span>
+                                <span class="worker-tag">${supplier || '-'}</span>
+                            </div>
+                        </div>
+                        <div class="worker-actions">
+                            ${hasSlip ? `
+                                <a href="${slipUrl}" target="_blank" class="btn-view-slip">
+                                    <i data-lucide="image"></i> ดูสลิป
+                                </a>
+                                <button class="btn-upload-slip re-upload" onclick="openSlipUpload(${rowIndex})">
+                                    <i data-lucide="refresh-cw"></i> เปลี่ยน
+                                </button>
+                            ` : `
+                                <button class="btn-upload-slip" onclick="openSlipUpload(${rowIndex})">
+                                    <i data-lucide="upload"></i> อัปโหลดสลิป
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+
+            const summaryHtml = `
+                <div class="payment-summary">
+                    <div class="summary-card total">
+                        <span class="label">ทั้งหมด</span>
+                        <span class="value">${matchedCount}</span>
+                    </div>
+                    <div class="summary-card paid">
+                        <span class="label">โอนแล้ว</span>
+                        <span class="value success">${paidCount}</span>
+                    </div>
+                    <div class="summary-card unpaid">
+                        <span class="label">คงเหลือ</span>
+                        <span class="value danger">${unpaidCount}</span>
+                    </div>
+                </div>
+            `;
+
+            if (matchedCount === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="user-minus"></i>
+                        <p>ไม่พบข้อมูลในกลุ่มสังกัด "${supplierFilter}"</p>
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = summaryHtml + workerHtml;
+            }
+        } else {
+            listContainer.innerHTML = `
+                <div class="empty-state">
+                    <i data-lucide="info"></i>
+                    <p>ไม่พบข้อมูลพนักงานในวันที่เลือก</p>
+                </div>
+            `;
+        }
+        lucide.createIcons();
+    } catch (error) {
+        console.error('Load payment data error:', error);
+        listContainer.innerHTML = `
+            <div class="error-state">
+                <i data-lucide="alert-circle"></i>
+                <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+            </div>
+        `;
+        lucide.createIcons();
+    }
+}
+
+function copyToClipboard(text, btnElement) {
+    if (!text || text === 'undefined') return;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const originalIcon = btnElement.innerHTML;
+        btnElement.innerHTML = '<i data-lucide="check" class="icon-xs"></i>';
+        btnElement.classList.add('copied');
+        lucide.createIcons();
+
+        setTimeout(() => {
+            btnElement.innerHTML = '<i data-lucide="copy" class="icon-xs"></i>';
+            btnElement.classList.remove('copied');
+            lucide.createIcons();
+        }, 2000);
+    }).catch(err => {
+        console.error('Copy failed', err);
+    });
+}
+
+function openSlipUpload(rowId) {
+    currentPaymentRowId = rowId;
+    document.getElementById('slipUploadInput').click();
+}
+
+async function handleSlipUpload(input) {
+    if (!input.files || !input.files[0] || !currentPaymentRowId) return;
+
+    showLoading(true);
+    const warehouse = document.getElementById('paymentFilterWarehouse').value;
+
+    try {
+        const file = input.files[0];
+        const compressedFile = await compressImage(file);
+        const base64 = await getBase64(compressedFile);
+
+        const data = {
+            action: 'updatePaymentSlip',
+            apiKey: CONFIG.API_KEY,
+            warehouse: warehouse,
+            rowIndex: currentPaymentRowId,
+            slipPhoto: base64
+        };
+
+        // Use POST with no-cors for GAS
+        await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(data)
+        });
+
+        // Refresh data after short delay (to allow GAS to finish background processing if any)
+        setTimeout(() => {
+            showLoading(false);
+            showSuccess('อัปโหลดสลิปสำเร็จ!', 'ข้อมูลใน Google Sheets ถูกอัปเดตเรียบร้อยแล้ว');
+            loadPaymentData();
+        }, 1500);
+
+    } catch (error) {
+        showLoading(false);
+        showError('ไม่สามารถอัปโหลดสลิปได้: ' + error.message);
+    } finally {
+        input.value = ''; // Reset input
+    }
 }
 
 // Close modal on backdrop click

@@ -180,6 +180,14 @@
                         <span class="menu-label">เอกสารรับเงิน</span>
                         <span class="menu-desc">สร้างใบรับเงิน</span>
                     </button>
+
+                    <button class="menu-card" onclick="showScreen('paymentScreen')">
+                        <div class="menu-icon stats">
+                            <i data-lucide="banknote"></i>
+                        </div>
+                        <span class="menu-label">จัดการการจ่ายเงิน</span>
+                        <span class="menu-desc">อัปโหลดสลิปเงินโอน</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -599,6 +607,66 @@
                 </div>
                 <canvas id="cameraCanvas" style="display: none;"></canvas>
             </div>
+        </div>
+
+        <!-- Payment Management Screen -->
+        <div id="paymentScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="showScreen('adminMenu')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <h2>จัดการการจ่ายเงิน</h2>
+            </div>
+
+            <div class="form-container">
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i data-lucide="filter"></i>
+                        ตัวกรองข้อมูลพนักงาน
+                    </h3>
+                    <div class="filter-controls">
+                        <div class="form-group">
+                            <label for="paymentFilterDate">เลือกวันที่</label>
+                            <input type="date" id="paymentFilterDate" onchange="loadPaymentData()">
+                        </div>
+                        <div class="form-group">
+                            <label for="paymentFilterWarehouse">เลือกคลัง</label>
+                            <select id="paymentFilterWarehouse" onchange="loadPaymentData()">
+                                <option value="ไอยรา">ไอยรา</option>
+                                <option value="อาจณรงค์">อาจณรงค์</option>
+                                <option value="ลาดกระบัง">ลาดกระบัง</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label for="paymentFilterSupplier">เลือกสังกัด (Supplier)</label>
+                            <select id="paymentFilterSupplier" onchange="loadPaymentData()">
+                                <option value="ทั้งหมด">ทั้งหมด</option>
+                                <option value="HR">HR</option>
+                                <option value="Outsource">Outsource</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i data-lucide="users"></i>
+                        รายชื่อพนักงาน
+                    </h3>
+                    <div id="paymentWorkerList" class="worker-list">
+                        <!-- Worker items will be injected here -->
+                        <div class="empty-state">
+                            <i data-lucide="search"></i>
+                            <p>กรุณาเลือกวันที่หรือรอโหลดข้อมูล...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden File Input for Slip -->
+            <input type="file" id="slipUploadInput" accept="image/*" style="display: none;"
+                onchange="handleSlipUpload(this)">
         </div>
 
         <!-- Success Modal -->
