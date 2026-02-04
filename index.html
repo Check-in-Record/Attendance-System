@@ -265,7 +265,7 @@
 
                             <div class="photo-button-group">
                                 <button type="button" class="btn-camera"
-                                    onclick="document.getElementById('selfieInputCam').click()">
+                                    onclick="openCameraModal('user', 'selfiePreview', 'selfieInputCam')">
                                     <i data-lucide="camera"></i>
                                     ถ่ายรูปใหม่
                                 </button>
@@ -399,7 +399,7 @@
 
                             <div class="photo-button-group">
                                 <button type="button" class="btn-camera"
-                                    onclick="document.getElementById('checkoutSelfieInputCam').click()">
+                                    onclick="openCameraModal('user', 'checkoutSelfiePreview', 'checkoutSelfieInputCam')">
                                     <i data-lucide="camera"></i>
                                     ถ่ายรูปใหม่
                                 </button>
@@ -600,6 +600,31 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Custom Camera Modal -->
+        <div id="cameraModal" class="modal">
+            <div class="camera-modal-container">
+                <div class="camera-header">
+                    <h3>ถ่ายรูปบัตรประชาชน</h3>
+                    <button type="button" class="camera-close" onclick="closeCameraModal()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="camera-preview-container">
+                    <video id="cameraVideo" autoplay playsinline></video>
+                    <div class="camera-overlay">
+                        <div class="card-frame"></div>
+                    </div>
+                </div>
+                <div class="camera-controls">
+                    <button type="button" class="btn-capture" onclick="takePicture()">
+                        <div class="capture-trigger"></div>
+                    </button>
+                    <p class="camera-hint">วางบัตรให้พอดีกับกรอบและกดปุ่มถ่ายรูป</p>
+                </div>
+                <canvas id="cameraCanvas" style="display: none;"></canvas>
             </div>
         </div>
 

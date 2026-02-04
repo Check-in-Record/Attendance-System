@@ -248,20 +248,37 @@ async function openCameraModal(facingMode, previewId, inputId) {
     document.getElementById('cameraModal').classList.add('active');
 
     try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
+        const constraints = {
             video: {
-                facingMode: facingMode === 'user' ? 'user' : 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+                facingMode: facingMode === 'user' ? 'user' : { exact: 'environment' },
             },
             audio: false
-        });
+        };
+
+        // Try with ideal resolution first
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: facingMode === 'user' ? 'user' : 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+        } catch (e) {
+            console.warn("Failed with ideal resolution, trying basic constraints", e);
+            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        }
 
         const video = document.getElementById('cameraVideo');
-        video.srcObject = cameraStream;
+        if (video) {
+            video.srcObject = cameraStream;
+            video.setAttribute('playsinline', ''); // Essential for iOS
+            video.play();
+        }
     } catch (err) {
         console.error("Error accessing camera:", err);
-        showError("ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบการอนุญาต");
+        showError(`ไม่สามารถเข้าถึงกล้องได้: ${err.message}\nกรุณาตรวจสอบการอนุญาตเข้าถึงกล้อง`);
         closeCameraModal();
     }
 }
@@ -616,11 +633,17 @@ async function exportReceipt() {
 
     // Config
     const opt = {
-        margin: 0, // Zero margin to fit page perfectly
+        margin: [5, 5, 5, 5], // Small safe margin
         filename: `receipt_${Date.now()}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            scrollY: 0,
+            windowWidth: 595 // Force standard width for calculation
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     try {
