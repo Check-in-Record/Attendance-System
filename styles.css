@@ -1058,19 +1058,31 @@ input::placeholder {
 .receipt-document {
     font-family: 'Sarabun', sans-serif;
     background: white;
-    width: 210mm;
-    /* Fixed A4 width */
-    min-height: 297mm;
-    /* Fixed A4 height */
+    width: 100%;
+    max-width: 600px;
+    /* Responsive max-width */
+    min-height: auto;
     margin: 0 auto;
     padding: 30px 40px;
-    /* Reduced top padding */
     border: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     position: relative;
     color: #000;
+}
+
+/* Specific mode for PDF export to ensure A4 proportions */
+.receipt-document.export-mode {
+    width: 794px !important;
+    /* Fixed A4 width at 96dpi */
+    min-height: 1123px !important;
+    /* Fixed A4 height */
+    max-width: none !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -9999;
 }
 
 @media print {
@@ -1103,7 +1115,8 @@ input::placeholder {
 }
 
 .company-logo img {
-    max-width: 250px;
+    max-width: 180px;
+    /* Further reduced for A4 space efficiency */
     height: auto !important;
     object-fit: contain;
 }

@@ -265,9 +265,7 @@ async function openCameraModal(facingMode, previewId, inputId) {
     try {
         const constraints = {
             video: {
-                facingMode: facingMode === 'user' ? 'user' : 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+                facingMode: facingMode === 'user' ? 'user' : 'environment'
             },
             audio: false
         };
@@ -275,10 +273,8 @@ async function openCameraModal(facingMode, previewId, inputId) {
         try {
             cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (e) {
-            console.warn("Failed with ideal resolution, trying basic constraints", e);
-            cameraStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: facingMode === 'user' ? 'user' : 'environment' }
-            });
+            console.warn("Retrying with minimal constraints", e);
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
         }
 
         const video = document.getElementById('cameraVideo');
@@ -294,16 +290,8 @@ async function openCameraModal(facingMode, previewId, inputId) {
         }
     } catch (err) {
         console.error("Error accessing camera:", err);
-        closeCameraModal();
-
-        // Only auto-trigger fallback if truly failed (not just flicker)
-        if (!cameraStream) {
-            const fallbackInput = document.getElementById(currentCameraTargetInputId);
-            if (fallbackInput) {
-                console.log("Auto-triggering native file input fallback");
-                fallbackInput.click();
-            }
-        }
+        // NO AUTO-FALLBACK here to prevent flickering. 
+        // User has the manual button to switch to album.
     }
 }
 
@@ -653,45 +641,43 @@ function generateReceipt() {
 async function exportReceipt() {
     const element = document.getElementById('receiptDocument');
 
-    // Config
+    // Prepare for export
+    element.classList.add('export-mode');
+
     const opt = {
-        margin: [5, 5, 5, 5],
+        margin: [0, 0, 0, 0], // Zero margin for true pixel-to-A4 mapping
         filename: `receipt_${Date.now()}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
             scale: 2,
             useCORS: true,
             scrollY: 0,
-            width: 794, // Fixed A4 width in px (at 96 DPI)
+            width: 794,
             windowWidth: 794
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        pagebreak: { mode: ['avoid-all'] }
     };
 
     try {
-        // Show loading state
         const btn = document.querySelector('.btn-export');
-        btn.innerHTML = '<i data-lucide="loader"></i> กำลังสร้าง PDF...';
-        lucide.createIcons();
+        btn.innerHTML = '<i data-lucide="loader"></i> Creating PDF...';
         btn.disabled = true;
 
-        // Hack: Wait for image paint
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-        // Generate PDF
         await html2pdf().set(opt).from(element).save();
 
-        showSuccess('บันทึกเอกสารสำเร็จ!', 'ไฟล์ PDF ถูกดาวน์โหลดแล้ว');
+        showSuccess('Download Complete!', 'The PDF has been saved.');
     } catch (error) {
         console.error(error);
-        showError('ไม่สามารถสร้างไฟล์ PDF ได้');
+        showError('Could not generate PDF');
     } finally {
-        // Reset button
+        element.classList.remove('export-mode');
         const btn = document.querySelector('.btn-export');
-        btn.innerHTML = '<i data-lucide="download"></i> บันทึกเป็น PDF';
-        lucide.createIcons();
+        btn.innerHTML = '<i data-lucide="download"></i> Save as PDF';
         btn.disabled = false;
+        lucide.createIcons();
     }
 }
 
