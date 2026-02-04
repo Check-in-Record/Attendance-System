@@ -1057,32 +1057,35 @@ input::placeholder {
 /* Receipt Document (A4 Size) */
 .receipt-document {
     font-family: 'Sarabun', sans-serif;
-    /* Explicitly use Sarabun for Thai PDF stability */
     background: white;
-    width: 100%;
-    max-width: 595px;
-    /* A4 width */
-    min-height: 842px;
-    /* A4 height */
+    width: 210mm;
+    /* Fixed A4 width */
+    min-height: 297mm;
+    /* Fixed A4 height */
     margin: 0 auto;
-    padding: 60px 40px;
-    /* Adjusted padding */
+    padding: 30px 40px;
+    /* Reduced top padding */
     border: 1px solid var(--border);
-    border-radius: 0;
-    box-shadow: var(--shadow-xl);
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    /* Align top, we will use margins for spacing */
     position: relative;
     color: #000;
-    /* Force black text for printing */
+}
+
+@media print {
+    .receipt-document {
+        box-shadow: none;
+        border: none;
+    }
 }
 
 .receipt-header {
     text-align: center;
-    margin-bottom: 40px;
-    padding-bottom: 20px;
+    margin-bottom: 20px;
+    /* Reduced from 40px */
+    padding-bottom: 15px;
+    /* Reduced from 20px */
     border-bottom: 3px solid #000;
 }
 
@@ -1092,8 +1095,10 @@ input::placeholder {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 8px;
+    /* Reduced from 12px */
+    margin-bottom: 15px;
+    /* Reduced from 24px */
     color: var(--primary);
 }
 
@@ -1119,20 +1124,20 @@ input::placeholder {
 }
 
 .receipt-idcard {
-    margin-bottom: 40px;
+    margin-bottom: 20px;
+    /* Reduced from 40px */
     text-align: center;
-    flex-grow: 1;
-    /* Allow this to take space if needed */
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .receipt-idcard img {
-    width: 60%;
+    width: auto;
     max-width: 320px;
+    max-height: 250px;
+    /* Prevent vertical stretching */
     height: auto;
-    aspect-ratio: auto;
     object-fit: contain;
     border-radius: var(--radius-md);
     border: 2px solid var(--border);
@@ -1142,8 +1147,9 @@ input::placeholder {
 
 .receipt-content {
     text-align: center;
-    margin-bottom: 60px;
-    padding: 0 20px;
+    margin-bottom: 20px;
+    /* Reduced from 60px */
+    padding: 0 10px;
 }
 
 .receipt-text {
@@ -1189,8 +1195,8 @@ input::placeholder {
 }
 
 .receipt-amount-line {
-    margin: 25px 0 !important;
-    /* Move amount further away */
+    margin: 15px 0 !important;
+    /* Reduced from 25px */
 }
 
 .receipt-bank-info {

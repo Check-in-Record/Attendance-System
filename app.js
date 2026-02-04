@@ -266,8 +266,8 @@ async function openCameraModal(facingMode, previewId, inputId) {
         const constraints = {
             video: {
                 facingMode: facingMode === 'user' ? 'user' : 'environment',
-                width: { ideal: 1920 }, // High quality
-                height: { ideal: 1080 }
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
             },
             audio: false
         };
@@ -285,20 +285,24 @@ async function openCameraModal(facingMode, previewId, inputId) {
         if (video) {
             video.srcObject = cameraStream;
             video.setAttribute('playsinline', ''); // Essential for iOS
-            video.play();
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.error("Auto-play failed:", error);
+                });
+            }
         }
     } catch (err) {
         console.error("Error accessing camera:", err);
         closeCameraModal();
 
-        // --- ENHANCED FALLBACK ---
-        // If permission denied or other error, try to use native input
-        const fallbackInput = document.getElementById(currentCameraTargetInputId);
-        if (fallbackInput) {
-            console.log("Auto-triggering native file input fallback");
-            fallbackInput.click();
-        } else {
-            showError(`ไม่สามารถเข้าถึงกล้องได้: ${err.message}`);
+        // Only auto-trigger fallback if truly failed (not just flicker)
+        if (!cameraStream) {
+            const fallbackInput = document.getElementById(currentCameraTargetInputId);
+            if (fallbackInput) {
+                console.log("Auto-triggering native file input fallback");
+                fallbackInput.click();
+            }
         }
     }
 }
@@ -651,14 +655,15 @@ async function exportReceipt() {
 
     // Config
     const opt = {
-        margin: [5, 5, 5, 5], // Small safe margin
+        margin: [5, 5, 5, 5],
         filename: `receipt_${Date.now()}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
             scale: 2,
             useCORS: true,
             scrollY: 0,
-            windowWidth: 595 // Force standard width for calculation
+            width: 794, // Fixed A4 width in px (at 96 DPI)
+            windowWidth: 794
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }

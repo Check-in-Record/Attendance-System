@@ -623,6 +623,10 @@
                         <div class="capture-trigger"></div>
                     </button>
                     <p class="camera-hint">วางบัตรให้พอดีกับกรอบและกดปุ่มถ่ายรูป</p>
+                    <button type="button" class="btn-link-fallback"
+                        onclick="closeCameraModal(); document.getElementById(currentCameraTargetInputId).click()">
+                        ใช้รูปจากเครื่อง/อัลบั้มแทน
+                    </button>
                 </div>
                 <canvas id="cameraCanvas" style="display: none;"></canvas>
             </div>
