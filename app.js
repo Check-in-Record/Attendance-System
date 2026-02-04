@@ -305,10 +305,10 @@ async function openCameraModal(facingMode, previewId, inputId) {
 
         // Final fallback: If ERROR in modal, close it and open native camera
         if (isAndroid || !isIOS) {
+            console.log("Android detected or camera error, attempting native input trigger");
             closeCameraModal();
-            setTimeout(() => {
-                document.getElementById(inputId).click();
-            }, 100);
+            const input = document.getElementById(inputId);
+            if (input) input.click();
         }
     }
 }
