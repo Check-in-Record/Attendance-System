@@ -107,6 +107,160 @@ body {
     position: relative;
 }
 
+/* Warehouse Selection */
+.warehouse-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100%;
+    margin-top: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .warehouse-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.warehouse-card {
+    background: white;
+    border: none;
+    border-radius: 1.5rem;
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.warehouse-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary);
+}
+
+.warehouse-card:active {
+    transform: scale(0.95);
+}
+
+.warehouse-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    color: white;
+}
+
+.warehouse-icon.iyara {
+    background: linear-gradient(135deg, #FF6B6B, #EE5253);
+}
+
+.warehouse-icon.atnarong {
+    background: linear-gradient(135deg, #4834D4, #686DE0);
+}
+
+.warehouse-icon.latkrabang {
+    background: linear-gradient(135deg, #F0932B, #FFBE76);
+}
+
+.warehouse-icon i {
+    width: 32px;
+    height: 32px;
+}
+
+.warehouse-label {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+}
+
+.warehouse-desc {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+/* Supplier Selection */
+.supplier-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    width: 100%;
+    margin-top: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .supplier-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.supplier-card {
+    background: white;
+    border: none;
+    border-radius: 1.25rem;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.supplier-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.08);
+    border-color: var(--primary);
+}
+
+.supplier-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+    color: white;
+}
+
+.supplier-icon.hr {
+    background: linear-gradient(135deg, #00b894, #55efc4);
+}
+
+.supplier-icon.outsource {
+    background: linear-gradient(135deg, #0984e3, #74b9ff);
+}
+
+.supplier-icon.temp {
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+}
+
+.supplier-icon.trd {
+    background: linear-gradient(135deg, #d63031, #ff7675);
+}
+
+.supplier-icon i {
+    width: 24px;
+    height: 24px;
+}
+
+.supplier-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
 /* Header */
 .app-header {
     background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -342,7 +496,7 @@ body {
 
 /* Form Groups */
 .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .form-group:last-child {
@@ -390,18 +544,10 @@ input::placeholder {
     color: var(--text-light);
 }
 
-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 20px;
-    padding-right: 44px;
-}
-
 /* Input with Button */
 .input-with-btn {
     display: flex;
-    gap: 8px;
+    gap: 12px;
 }
 
 .input-with-btn input {
@@ -422,69 +568,153 @@ select {
     transition: var(--transition);
 }
 
-.btn-search:hover {
-    background: var(--primary-dark);
-}
-
-.btn-search i {
-    width: 20px;
-    height: 20px;
-}
-
-/* GPS Status */
-.gps-status {
+/* Photo Groups */
+/* Camera Modal Styles */
+.camera-modal-container {
+    background: #000;
+    width: 100%;
+    height: 100%;
+    position: relative;
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    background: var(--bg);
-    border-radius: var(--radius-md);
-    margin-bottom: 12px;
+    flex-direction: column;
 }
 
-.gps-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-full);
+.camera-header {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+}
+
+.camera-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+.camera-preview-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #000;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.gps-icon i {
-    width: 20px;
-    height: 20px;
+#cameraVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.gps-icon.pending {
-    background: var(--warning-light);
-    color: var(--warning);
-    animation: pulse 2s infinite;
+.camera-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
 }
 
-.gps-icon.success {
-    background: var(--success-light);
-    color: var(--success);
+.card-frame {
+    width: 85%;
+    aspect-ratio: 1.586/1;
+    /* standard ID card ratio */
+    border: 3px solid #00b894;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    position: relative;
 }
 
-.gps-icon.error {
-    background: var(--danger-light);
-    color: var(--danger);
+.card-frame::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 15px;
 }
 
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
+.camera-controls {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 100;
 }
 
-/* Photo Groups */
+.btn-capture {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: white;
+    padding: 5px;
+    border: 4px solid #333;
+    cursor: pointer;
+}
+
+.capture-trigger {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #ccc;
+}
+
+.camera-hint {
+    color: #ccc;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+
+/* Photo Group */
+.photo-button-group {
+    display: flex;
+    gap: 0.75rem;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.photo-button-group .btn-camera,
+.photo-button-group .btn-gallery {
+    flex: 1;
+    margin-top: 0;
+}
+
+.btn-gallery {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 1rem;
+    background: white;
+    color: var(--dark);
+    border: 1.5px solid #e2e8f0;
+    border-radius: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-gallery:hover {
+    background: #f8fafc;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
 .photo-group {
     margin-bottom: 20px;
 }
@@ -927,15 +1157,30 @@ select {
 }
 
 .receipt-signature p {
-    font-size: 18px;
-    margin-bottom: 12px;
+    font-size: 18px !important;
 }
 
-.signature-name {
-    margin-top: 16px;
-    color: var(--text-muted);
-    font-weight: 500;
-    font-size: 18px !important;
+.receipt-content p {
+    margin-bottom: 15px;
+    /* Increase line spacing */
+    line-height: 1.6;
+}
+
+.receipt-amount-line {
+    margin: 25px 0 !important;
+    /* Move amount further away */
+}
+
+.receipt-bank-info {
+    margin-top: 25px;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+}
+
+.receipt-bank-info p {
+    margin-bottom: 8px !important;
 }
 
 /* Admin Table */

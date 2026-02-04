@@ -36,8 +36,15 @@ const CONFIG = {
 // ===================================
 // Global State
 // ===================================
+let selectedWarehouse = null;
+let selectedSupplier = null;
 let currentCheckInData = null;
 let currentReceiptData = null;
+
+// Camera state
+let cameraStream = null;
+let currentCameraTargetPreviewId = null;
+let currentCameraTargetInputId = null;
 
 // ===================================
 // Initialize App
@@ -95,6 +102,24 @@ function updateClock() {
 // ===================================
 // Navigation
 // ===================================
+function selectWarehouse(name) {
+    selectedWarehouse = name;
+    showScreen('supplierSelection');
+}
+
+function selectSupplier(name) {
+    selectedSupplier = name;
+    document.getElementById('headerWarehouseName').textContent = `${selectedWarehouse} | ${selectedSupplier}`;
+    showScreen('mainMenu');
+}
+
+function showWarehouseSelection() {
+    selectedWarehouse = null;
+    selectedSupplier = null;
+    document.getElementById('headerWarehouseName').textContent = 'Time Attendance';
+    showScreen('warehouseSelection');
+}
+
 function showScreen(screenId) {
     // Hide all screens
     document.querySelectorAll('.screen').forEach(screen => {
@@ -215,6 +240,68 @@ function getBase64(file) {
     });
 }
 
+// Custom Camera Modal functions
+async function openCameraModal(facingMode, previewId, inputId) {
+    currentCameraTargetPreviewId = previewId;
+    currentCameraTargetInputId = inputId;
+
+    document.getElementById('cameraModal').classList.add('active');
+
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: facingMode === 'user' ? 'user' : 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+
+        const video = document.getElementById('cameraVideo');
+        video.srcObject = cameraStream;
+    } catch (err) {
+        console.error("Error accessing camera:", err);
+        showError("ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบการอนุญาต");
+        closeCameraModal();
+    }
+}
+
+function closeCameraModal() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    document.getElementById('cameraModal').classList.remove('active');
+}
+
+function takePicture() {
+    const video = document.getElementById('cameraVideo');
+    const canvas = document.getElementById('cameraCanvas');
+    const context = canvas.getContext('2d');
+
+    // Set canvas size to video size
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw frame
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert to blob/file
+    canvas.toBlob((blob) => {
+        const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+
+        // Manual trigger preview
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        const input = document.getElementById(currentCameraTargetInputId);
+        input.files = dataTransfer.files;
+
+        previewPhoto(input, currentCameraTargetPreviewId);
+
+        closeCameraModal();
+    }, 'image/jpeg', 0.8);
+}
+
 // ===================================
 // Check-In Functions
 // ===================================
@@ -254,14 +341,21 @@ async function submitCheckIn(event) {
         const bankName = document.getElementById('bankName').value;
         const accountNumber = document.getElementById('accountNumber').value.trim();
         const gpsLocation = document.getElementById('gpsLocation').value;
-        const selfieInput = document.getElementById('selfieInput');
-        const idCardInput = document.getElementById('idCardInput');
 
-        if (!selfieInput.files[0] || !idCardInput.files[0]) throw new Error('กรุณาถ่ายรูปให้ครบ');
+        // Check both Camera and Gallery inputs
+        const selfieCam = document.getElementById('selfieInputCam');
+        const selfieGal = document.getElementById('selfieInputGal');
+        const idCardCam = document.getElementById('idCardInputCam');
+        const idCardGal = document.getElementById('idCardInputGal');
+
+        const selfieFile = selfieCam.files[0] || selfieGal.files[0];
+        const idCardFile = idCardCam.files[0] || idCardGal.files[0];
+
+        if (!selfieFile || !idCardFile) throw new Error('กรุณาถ่ายรูปให้ครบ');
         if (!gpsLocation) throw new Error('กรุณาเปิด GPS');
 
-        const selfieBase64 = await getBase64(selfieInput.files[0]);
-        const idCardBase64 = await getBase64(idCardInput.files[0]);
+        const selfieBase64 = await getBase64(selfieFile);
+        const idCardBase64 = await getBase64(idCardFile);
         const now = new Date();
         const checkInTime = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -277,6 +371,8 @@ async function submitCheckIn(event) {
         const payload = {
             action: 'checkIn',
             apiKey: CONFIG.API_KEY,
+            warehouse: selectedWarehouse,
+            supplier: selectedSupplier, // New field
             fullName: fullName,
             phone: phone,
             bankName: bankName,
@@ -355,7 +451,7 @@ async function searchCheckIn() {
     }
 
     try {
-        const response = await fetch(`${CONFIG.API_URL}?action=searchCheckIn&apiKey=${CONFIG.API_KEY}&phone=${encodeURIComponent(phone)}`);
+        const response = await fetch(`${CONFIG.API_URL}?action=searchCheckIn&apiKey=${CONFIG.API_KEY}&warehouse=${encodeURIComponent(selectedWarehouse)}&phone=${encodeURIComponent(phone)}`);
         const result = await response.json();
 
         if (result.success && result.data) {
@@ -389,15 +485,18 @@ async function submitCheckOut(event) {
     lucide.createIcons();
 
     try {
-        // Get photo
-        const selfieInput = document.getElementById('checkoutSelfieInput');
+        // Check both Camera and Gallery inputs
+        const selfieCam = document.getElementById('checkoutSelfieInputCam');
+        const selfieGal = document.getElementById('checkoutSelfieInputGal');
 
-        if (!selfieInput.files || !selfieInput.files[0]) {
+        const selfieFile = selfieCam.files[0] || selfieGal.files[0];
+
+        if (!selfieFile) {
             throw new Error('กรุณาถ่ายรูป Selfie ออกงาน');
         }
 
         // Convert to base64
-        const selfieBase64 = await getBase64(selfieInput.files[0]);
+        const selfieBase64 = await getBase64(selfieFile);
 
         // Get current time
         const now = new Date();
@@ -411,6 +510,7 @@ async function submitCheckOut(event) {
         const data = {
             action: 'checkOut',
             apiKey: CONFIG.API_KEY,
+            warehouse: selectedWarehouse, // New field
             rowIndex: document.getElementById('checkOutRowId').value,
             checkoutSelfie: selfieBase64,
             checkOutTime: checkOutTime,
@@ -458,7 +558,7 @@ async function searchForReceipt() {
     }
 
     try {
-        const response = await fetch(`${CONFIG.API_URL}?action=searchForReceipt&apiKey=${CONFIG.API_KEY}&phone=${encodeURIComponent(phone)}`);
+        const response = await fetch(`${CONFIG.API_URL}?action=searchForReceipt&apiKey=${CONFIG.API_KEY}&warehouse=${encodeURIComponent(selectedWarehouse)}&phone=${encodeURIComponent(phone)}`);
         const result = await response.json();
 
         if (result.success && result.data) {
@@ -493,6 +593,9 @@ function generateReceipt() {
     document.getElementById('receiptDate').textContent = dateStr;
     document.getElementById('receiptFullName').textContent = currentReceiptData?.fullName || '-';
     document.getElementById('receiptSignName').textContent = currentReceiptData?.fullName || '-';
+    document.getElementById('receiptBankName').textContent = currentReceiptData?.bankName || '-';
+    document.getElementById('receiptAccountNumber').textContent = currentReceiptData?.accountNumber || '-';
+
     document.getElementById('receiptAmountDisplay').textContent = parseFloat(amount).toLocaleString('th-TH', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -556,28 +659,32 @@ async function loadAttendanceData() {
     tableBody.innerHTML = '<tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr>';
 
     try {
-        const response = await fetch(`${CONFIG.API_URL}?action=getAttendance&date=${filterDate}`);
+        const response = await fetch(`${CONFIG.API_URL}?action=getAttendance&apiKey=${CONFIG.API_KEY}&warehouse=${encodeURIComponent(selectedWarehouse)}&date=${filterDate}`);
         const result = await response.json();
 
-        if (result.success && result.data && result.data.length > 0) {
-            tableBody.innerHTML = result.data.map(row => `
-                <tr>
-                    <td>${row.fullName}</td>
-                    <td>${row.phone}</td>
-                    <td>${row.checkInTime}</td>
-                    <td>${row.checkOutTime || '-'}</td>
-                    <td>
-                        <span class="status-badge ${row.checkOutTime ? 'completed' : 'working'}">
-                            ${row.checkOutTime ? 'ออกแล้ว' : 'กำลังทำงาน'}
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
+        if (result.success) {
+            if (result.data && result.data.length > 0) {
+                tableBody.innerHTML = result.data.map(row => `
+                    <tr>
+                        <td>${row.fullName}</td>
+                        <td>${row.phone}</td>
+                        <td>${row.checkInTime}</td>
+                        <td>${row.checkOutTime || '-'}</td>
+                        <td>
+                            <span class="status-badge ${row.checkOutTime ? 'completed' : 'working'}">
+                                ${row.checkOutTime ? 'ออกแล้ว' : 'กำลังทำงาน'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="5" class="no-data">ยังไม่มีข้อมูลในวันที่เลือก</td></tr>';
+            }
         } else {
-            tableBody.innerHTML = '<tr><td colspan="5" class="no-data">ยังไม่มีข้อมูล</td></tr>';
+            tableBody.innerHTML = `<tr><td colspan="5" class="no-data">ข้อผิดพลาด: ${result.error || 'ไม่ทราบสาเหตุ'}</td></tr>`;
         }
     } catch (error) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="no-data">ไม่สามารถโหลดข้อมูลได้</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="no-data">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</td></tr>';
     }
 }
 

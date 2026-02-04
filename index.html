@@ -35,16 +35,93 @@
         <!-- Header -->
         <header class="app-header">
             <div class="header-content">
-                <div class="logo">
-                    <i data-lucide="clock"></i>
-                    <span>Time Attendance</span>
+                <div class="logo" onclick="showWarehouseSelection()" style="cursor: pointer;">
+                    <i data-lucide="map-pin"></i>
+                    <span id="headerWarehouseName">Time Attendance</span>
                 </div>
                 <div class="header-time" id="currentTime"></div>
             </div>
         </header>
 
+        <!-- Warehouse Selection Screen -->
+        <div id="warehouseSelection" class="screen active">
+            <div class="menu-container">
+                <h1 class="welcome-title">เลือกคลังสินค้า</h1>
+                <p class="welcome-subtitle">กรุณาเลือกคลังที่คุณปฏิบัติงาน</p>
+
+                <div class="warehouse-grid">
+                    <button class="warehouse-card" onclick="selectWarehouse('ไอยรา')">
+                        <div class="warehouse-icon iyara">
+                            <i data-lucide="warehouse"></i>
+                        </div>
+                        <span class="warehouse-label">คลังไอยรา</span>
+                        <span class="warehouse-desc">สาขาไอยรา (Iyara)</span>
+                    </button>
+
+                    <button class="warehouse-card" onclick="selectWarehouse('อาจณรงค์')">
+                        <div class="warehouse-icon atnarong">
+                            <i data-lucide="warehouse"></i>
+                        </div>
+                        <span class="warehouse-label">คลังอาจณรงค์</span>
+                        <span class="warehouse-desc">สาขาอาจณรงค์ (At Narong)</span>
+                    </button>
+
+                    <button class="warehouse-card" onclick="selectWarehouse('ลาดกระบัง')">
+                        <div class="warehouse-icon latkrabang">
+                            <i data-lucide="warehouse"></i>
+                        </div>
+                        <span class="warehouse-label">คลังลาดกระบัง</span>
+                        <span class="warehouse-desc">สาขาลาดกระบัง (Lat Krabang)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supplier Selection Screen -->
+        <div id="supplierSelection" class="screen">
+            <div class="menu-container">
+                <div class="screen-header no-border">
+                    <button class="back-btn" onclick="showWarehouseSelection()">
+                        <i data-lucide="arrow-left"></i>
+                    </button>
+                    <h2>เลือกต้นสังกัด</h2>
+                </div>
+                <p class="welcome-subtitle">กรุณาเลือกบริษัทต้นสังกัดของคุณ</p>
+
+                <div class="supplier-grid">
+                    <button class="supplier-card" onclick="selectSupplier('HR')">
+                        <div class="supplier-icon hr">
+                            <i data-lucide="users"></i>
+                        </div>
+                        <span class="supplier-label">HR</span>
+                    </button>
+
+                    <button class="supplier-card" onclick="selectSupplier('Outsource')">
+                        <div class="supplier-icon outsource">
+                            <i data-lucide="user-plus"></i>
+                        </div>
+                        <span class="supplier-label">Outsource</span>
+                    </button>
+
+                    <button class="supplier-card" onclick="selectSupplier('Temp')">
+                        <div class="supplier-icon temp">
+                            <i data-lucide="user-check"></i>
+                        </div>
+                        <span class="supplier-label">Temp</span>
+                    </button>
+
+                    <button class="supplier-card" onclick="selectSupplier('TRD')">
+                        <div class="supplier-icon trd">
+                            <i data-lucide="user"></i>
+                        </div>
+                        <span class="supplier-label">TRD</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Menu Screen -->
-        <div id="mainMenu" class="screen active">
+        <div id="mainMenu" class="screen">
             <div class="menu-container">
                 <h1 class="welcome-title">ระบบบันทึกเวลา</h1>
                 <p class="welcome-subtitle">พนักงานพาร์ทไทม์</p>
@@ -179,13 +256,25 @@
                                 <i data-lucide="user-circle"></i>
                                 <span>ยังไม่มีรูป</span>
                             </div>
-                            <input type="file" id="selfieInput" accept="image/*" capture="user"
+
+                            <!-- Hidden Inputs -->
+                            <input type="file" id="selfieInputCam" accept="image/*" capture="user"
                                 onchange="previewPhoto(this, 'selfiePreview')" style="display: none;">
-                            <button type="button" class="btn-camera"
-                                onclick="document.getElementById('selfieInput').click()">
-                                <i data-lucide="camera"></i>
-                                ถ่ายรูป Selfie
-                            </button>
+                            <input type="file" id="selfieInputGal" accept="image/*"
+                                onchange="previewPhoto(this, 'selfiePreview')" style="display: none;">
+
+                            <div class="photo-button-group">
+                                <button type="button" class="btn-camera"
+                                    onclick="document.getElementById('selfieInputCam').click()">
+                                    <i data-lucide="camera"></i>
+                                    ถ่ายรูปใหม่
+                                </button>
+                                <button type="button" class="btn-gallery"
+                                    onclick="document.getElementById('selfieInputGal').click()">
+                                    <i data-lucide="image"></i>
+                                    เลือกจากอัลบั้ม
+                                </button>
+                            </div>
                         </div>
 
                         <!-- ID Card Photo -->
@@ -195,13 +284,25 @@
                                 <i data-lucide="credit-card"></i>
                                 <span>ยังไม่มีรูป</span>
                             </div>
-                            <input type="file" id="idCardInput" accept="image/*" capture="environment"
+
+                            <!-- Hidden Inputs -->
+                            <input type="file" id="idCardInputCam" accept="image/*" capture="environment"
                                 onchange="previewPhoto(this, 'idCardPreview')" style="display: none;">
-                            <button type="button" class="btn-camera"
-                                onclick="document.getElementById('idCardInput').click()">
-                                <i data-lucide="camera"></i>
-                                ถ่ายรูปบัตรประชาชน
-                            </button>
+                            <input type="file" id="idCardInputGal" accept="image/*"
+                                onchange="previewPhoto(this, 'idCardPreview')" style="display: none;">
+
+                            <div class="photo-button-group">
+                                <button type="button" class="btn-camera"
+                                    onclick="openCameraModal('environment', 'idCardPreview', 'idCardInputCam')">
+                                    <i data-lucide="camera"></i>
+                                    ถ่ายรูปใหม่
+                                </button>
+                                <button type="button" class="btn-gallery"
+                                    onclick="document.getElementById('idCardInputGal').click()">
+                                    <i data-lucide="image"></i>
+                                    เลือกจากอัลบั้ม
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -289,13 +390,25 @@
                                 <i data-lucide="user-circle"></i>
                                 <span>ยังไม่มีรูป</span>
                             </div>
-                            <input type="file" id="checkoutSelfieInput" accept="image/*" capture="user"
+
+                            <!-- Hidden Inputs -->
+                            <input type="file" id="checkoutSelfieInputCam" accept="image/*" capture="user"
                                 onchange="previewPhoto(this, 'checkoutSelfiePreview')" style="display: none;">
-                            <button type="button" class="btn-camera"
-                                onclick="document.getElementById('checkoutSelfieInput').click()">
-                                <i data-lucide="camera"></i>
-                                ถ่ายรูป Selfie
-                            </button>
+                            <input type="file" id="checkoutSelfieInputGal" accept="image/*"
+                                onchange="previewPhoto(this, 'checkoutSelfiePreview')" style="display: none;">
+
+                            <div class="photo-button-group">
+                                <button type="button" class="btn-camera"
+                                    onclick="document.getElementById('checkoutSelfieInputCam').click()">
+                                    <i data-lucide="camera"></i>
+                                    ถ่ายรูปใหม่
+                                </button>
+                                <button type="button" class="btn-gallery"
+                                    onclick="document.getElementById('checkoutSelfieInputGal').click()">
+                                    <i data-lucide="image"></i>
+                                    เลือกจากอัลบั้ม
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -404,6 +517,12 @@
                                 <p class="receipt-amount-line">
                                     จำนวน <span id="receiptAmountDisplay" class="amount-highlight">0.00</span> บาท
                                 </p>
+                                <p class="receipt-success-text">ไว้เรียบร้อยแล้ว</p>
+
+                                <div class="receipt-bank-info">
+                                    <p>เข้าบัญชี <span id="receiptBankName">-</span></p>
+                                    <p>เลขที่บัญชี <span id="receiptAccountNumber">-</span></p>
+                                </div>
                             </div>
 
                             <div class="receipt-signature">
