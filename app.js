@@ -1193,3 +1193,70 @@ document.querySelectorAll('.modal').forEach(modal => {
         }
     });
 });
+
+// ===================================
+// Auto-fill Functions
+// ===================================
+let phoneDebounceTimer = null;
+
+async function handlePhoneInput(input) {
+    const phone = input.value;
+    const loadingIndicator = document.getElementById('phoneLoadingIndicator');
+    const foundIndicator = document.getElementById('phoneFoundIndicator');
+
+    // ซ่อน indicators
+    if (loadingIndicator) loadingIndicator.style.display = 'none';
+    if (foundIndicator) foundIndicator.style.display = 'none';
+
+    // ถ้ายังพิมพ์ไม่ครบ 10 หลัก ไม่ต้องทำอะไร
+    if (phone.length !== 10 || !/^0[0-9]{9}$/.test(phone)) {
+        return;
+    }
+
+    // Debounce เพื่อไม่ให้เรียก API บ่อยเกินไป
+    clearTimeout(phoneDebounceTimer);
+    phoneDebounceTimer = setTimeout(async () => {
+        await searchAndFillData(phone);
+    }, 500);
+}
+
+async function searchAndFillData(phone) {
+    const loadingIndicator = document.getElementById('phoneLoadingIndicator');
+    const foundIndicator = document.getElementById('phoneFoundIndicator');
+
+    try {
+        // แสดง loading
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'block';
+            lucide.createIcons();
+        }
+
+        // เรียก API
+        const url = `${CONFIG.API_URL}?action=getLastCheckIn&apiKey=${CONFIG.API_KEY}&warehouse=${encodeURIComponent(selectedWarehouse)}&phone=${encodeURIComponent(phone)}`;
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+
+        if (result.success && result.data) {
+            // Auto-fill ข้อมูล (ยกเว้นรูป)
+            document.getElementById('fullName').value = result.data.fullName;
+            document.getElementById('bankName').value = result.data.bankName;
+            document.getElementById('accountNumber').value = result.data.accountNumber;
+
+            // แสดง success indicator
+            if (foundIndicator) {
+                foundIndicator.style.display = 'block';
+                lucide.createIcons();
+
+                // ซ่อนหลัง 3 วินาที
+                setTimeout(() => {
+                    foundIndicator.style.display = 'none';
+                }, 3000);
+            }
+        }
+    } catch (error) {
+        console.error('Auto-fill error:', error);
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+    }
+}

@@ -1686,6 +1686,14 @@ input::placeholder {
     animation: spin 1s linear infinite;
 }
 
+/* Auto-fill Loading Icon */
+.spin-icon {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    width: 14px;
+    height: 14px;
+}
+
 @keyframes spin {
     from {
         transform: rotate(0deg);
@@ -1694,4 +1702,11 @@ input::placeholder {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* Form Hints */
+.form-hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
 }
