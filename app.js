@@ -615,7 +615,8 @@ async function submitCheckIn(event) {
         if (!gpsLocation) throw new Error('กรุณาเปิด GPS และรอจนกว่าตำแหน่งจะขึ้น');
 
         const selfieBase64 = await getBase64(selfieFile);
-        const idCardBase64 = await getBase64(idCardFile);
+        // ??? idCardFile ???? URL (string) ?????????? ??????????? Base64
+        const idCardBase64 = typeof idCardFile === 'string' ? idCardFile : await getBase64(idCardFile);
         const now = new Date();
         const checkInTime = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -1244,6 +1245,16 @@ async function searchAndFillData(phone) {
             document.getElementById('bankName').value = result.data.bankName;
             document.getElementById('accountNumber').value = result.data.accountNumber;
 
+            // Auto-fill ?????????????? (?????)
+            if (result.data.idCardUrl) {
+                const idCardPreview = document.getElementById('idCardPreview');
+                if (idCardPreview) {
+                    idCardPreview.innerHTML = `<img src="${result.data.idCardUrl}" alt="ID Card">`;
+                    idCardPreview.classList.add('has-image');
+                }
+                capturedPhotos['idCardPreview'] = result.data.idCardUrl;
+            }
+
             // แสดง success indicator
             if (foundIndicator) {
                 foundIndicator.style.display = 'block';
@@ -1260,3 +1271,5 @@ async function searchAndFillData(phone) {
         if (loadingIndicator) loadingIndicator.style.display = 'none';
     }
 }
+
+
