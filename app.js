@@ -560,6 +560,9 @@ function resetCheckInForm() {
         idCardPreview.classList.remove('has-image');
     }
 
+    // รีเซ็ต flag พนักงานเก่า
+    returningEmployee = false;
+
     lucide.createIcons();
 }
 
@@ -612,7 +615,8 @@ async function submitCheckIn(event) {
         const idCardFile = capturedPhotos['idCardPreview'];
 
         if (!selfieFile) throw new Error('กรุณาถ่ายรูป Selfie ก่อนบันทึก');
-        if (!idCardFile) throw new Error('กรุณาถ่ายรูปบัตรประชาชน หรือรอให้ระบบดึงข้อมูลเก่า');
+        // พนักงานใหม่: ต้องถ่ายบัตรประชาชน | พนักงานเก่า: ไม่ต้องถ่าย
+        if (!idCardFile && !returningEmployee) throw new Error('กรุณาถ่ายรูปบัตรประชาชน');
         if (!gpsLocation) throw new Error('กรุณาเปิด GPS และรอจนกว่าตำแหน่งจะขึ้น');
 
         const selfieBase64 = await getBase64(selfieFile);
@@ -1204,6 +1208,7 @@ document.querySelectorAll('.modal').forEach(modal => {
 // Auto-fill Functions
 // ===================================
 let phoneDebounceTimer = null;
+let returningEmployee = false; // true = พบข้อมูลพนักงานเก่า (ไม่ต้องเซ็นบัตรประชาชนอีก)
 
 async function handlePhoneInput(input) {
     const phone = input.value;
@@ -1245,12 +1250,14 @@ async function searchAndFillData(phone) {
         if (loadingIndicator) loadingIndicator.style.display = 'none';
 
         if (result.success && result.data) {
+            returningEmployee = true; // พบพนักงานเก่า → ไม่ต้องเซ็นบัตรประชาชนอีก
+
             // Auto-fill ข้อมูล (ยกเว้นรูป)
             document.getElementById('fullName').value = result.data.fullName;
             document.getElementById('bankName').value = result.data.bankName;
             document.getElementById('accountNumber').value = result.data.accountNumber;
 
-            // Auto-fill ?????????????? (?????)
+            // Auto-fill รูปบัตรประชาชน (ถ้ามี)
             if (result.data.idCardUrl) {
                 const idCardPreview = document.getElementById('idCardPreview');
                 if (idCardPreview) {
@@ -1258,6 +1265,14 @@ async function searchAndFillData(phone) {
                     idCardPreview.classList.add('has-image');
                 }
                 capturedPhotos['idCardPreview'] = result.data.idCardUrl;
+            } else {
+                // พนักงานเก่า แต่ไม่มีรูปบัตรเก่า → แจ้งให้ถ่ายครั้งนี้ แต่ไม่บล็อคการบันทึก
+                const idCardPreview = document.getElementById('idCardPreview');
+                if (idCardPreview) {
+                    idCardPreview.innerHTML = `<i data-lucide="alert-circle"></i><span>ไม่พบรูปบัตรเก่า - ถ่ายใหม่หรือข้ามได้</span>`;
+                    idCardPreview.classList.remove('has-image');
+                }
+                lucide.createIcons();
             }
 
             // แสดง success indicator
