@@ -1804,6 +1804,33 @@ input::placeholder {
     transform: scale(0.98);
 }
 
+/* Employee Avatar */
+.emp-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    margin-right: 12px;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    border: 2px solid var(--border);
+}
+
+.emp-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.emp-avatar i {
+    width: 22px;
+    height: 22px;
+}
+
 .emp-card-left {
     flex: 1;
     min-width: 0;

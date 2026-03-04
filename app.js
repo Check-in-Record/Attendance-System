@@ -1353,6 +1353,12 @@ async function loadSummaryData() {
                 const statusText = worker.status || 'เข้างาน';
                 html += `
                     <div class="summary-employee-card" onclick="showEmployeeDetail(${index})">
+                        <div class="emp-avatar">
+                            ${worker.selfieInUrl
+                        ? `<img src="${worker.selfieInUrl}" alt="${worker.fullName}" referrerpolicy="no-referrer">`
+                        : `<i data-lucide="user"></i>`
+                    }
+                        </div>
                         <div class="emp-card-left">
                             <div class="emp-name">${worker.fullName}</div>
                             <div class="emp-meta">
