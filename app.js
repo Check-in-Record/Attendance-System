@@ -611,12 +611,16 @@ async function submitCheckIn(event) {
         const selfieFile = capturedPhotos['selfiePreview'];
         const idCardFile = capturedPhotos['idCardPreview'];
 
-        if (!selfieFile || !idCardFile) throw new Error('กรุณาถ่ายรูปให้ครบ');
+        if (!selfieFile) throw new Error('กรุณาถ่ายรูป Selfie ก่อนบันทึก');
+        if (!idCardFile) throw new Error('กรุณาถ่ายรูปบัตรประชาชน หรือรอให้ระบบดึงข้อมูลเก่า');
         if (!gpsLocation) throw new Error('กรุณาเปิด GPS และรอจนกว่าตำแหน่งจะขึ้น');
 
         const selfieBase64 = await getBase64(selfieFile);
-        // ??? idCardFile ???? URL (string) ?????????? ??????????? Base64
-        const idCardBase64 = typeof idCardFile === 'string' ? idCardFile : await getBase64(idCardFile);
+        // ถ้า idCardFile เป็น URL (พนักงานเก่า - autofill) ให้ใช้ URL โดยตรง ไม่ต้องแปลงเป็น Base64
+        // ถ้าเป็น File (พนักงานใหม่หรือถ่ายใหม่) ให้แปลงเป็น Base64 ตามปกติ
+        const isIdCardUrl = typeof idCardFile === 'string' && idCardFile.startsWith('http');
+        const idCardBase64 = isIdCardUrl ? '' : await getBase64(idCardFile);
+        const idCardPhotoUrl = isIdCardUrl ? idCardFile : '';
         const now = new Date();
         const checkInTime = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -640,7 +644,8 @@ async function submitCheckIn(event) {
             accountNumber: accountNumber,
             gpsLocation: gpsLocation,
             selfiePhoto: selfieBase64,
-            idCardPhoto: idCardBase64,
+            idCardPhoto: idCardBase64,       // Base64 สำหรับพนักงานใหม่ (จะเป็น '' ถ้าใช้ URL)
+            idCardPhotoUrl: idCardPhotoUrl,  // URL สำหรับพนักงานเก่าที่ autofill มา
             checkInTime: checkInTime,
             checkInDate: now.toLocaleDateString('th-TH'),
             timestamp: now.toISOString()
