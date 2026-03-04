@@ -188,6 +188,14 @@
                         <span class="menu-label">จัดการการจ่ายเงิน</span>
                         <span class="menu-desc">อัปโหลดสลิปเงินโอน</span>
                     </button>
+
+                    <button class="menu-card" onclick="initSummaryScreen()">
+                        <div class="menu-icon summary">
+                            <i data-lucide="bar-chart-2"></i>
+                        </div>
+                        <span class="menu-label">สรุปรายวัน</span>
+                        <span class="menu-desc">ดูข้อมูลพนักงานรายวัน</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -615,6 +623,74 @@
             </div>
         </div>
 
+        <!-- Summary Screen -->
+        <div id="summaryScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="showScreen('adminMenu')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <h2>สรุปรายวัน</h2>
+            </div>
+
+            <div class="form-container">
+                <!-- Filters -->
+                <div class="form-section">
+                    <div class="filter-controls">
+                        <div class="form-group">
+                            <label for="summaryFilterDate">วันที่</label>
+                            <input type="date" id="summaryFilterDate" onchange="loadSummaryData()">
+                        </div>
+                        <div class="form-group">
+                            <label for="summaryFilterWarehouse">คลังสินค้า</label>
+                            <select id="summaryFilterWarehouse" onchange="loadSummaryData()">
+                                <option value="ไอยรา">ไอยรา</option>
+                                <option value="อาจณรงค์">อาจณรงค์</option>
+                                <option value="ลาดกระบัง">ลาดกระบัง</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat Cards -->
+                <div class="summary-stat-grid" id="summaryStatGrid">
+                    <div class="summary-stat-card total">
+                        <i data-lucide="users"></i>
+                        <div class="stat-number" id="statTotal">-</div>
+                        <div class="stat-label">ทั้งหมด</div>
+                    </div>
+                    <div class="summary-stat-card working">
+                        <i data-lucide="log-in"></i>
+                        <div class="stat-number" id="statWorking">-</div>
+                        <div class="stat-label">กำลังทำงาน</div>
+                    </div>
+                    <div class="summary-stat-card done">
+                        <i data-lucide="log-out"></i>
+                        <div class="stat-number" id="statDone">-</div>
+                        <div class="stat-label">ออกงานแล้ว</div>
+                    </div>
+                    <div class="summary-stat-card paid">
+                        <i data-lucide="check-circle"></i>
+                        <div class="stat-number" id="statPaid">-</div>
+                        <div class="stat-label">โอนแล้ว</div>
+                    </div>
+                </div>
+
+                <!-- Employee List -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i data-lucide="list"></i>
+                        รายชื่อพนักงาน
+                    </h3>
+                    <div id="summaryWorkerList" class="worker-list">
+                        <div class="empty-state">
+                            <i data-lucide="search"></i>
+                            <p>กรุณาเลือกวันที่...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Payment Management Screen -->
         <div id="paymentScreen" class="screen">
             <div class="screen-header">
@@ -675,6 +751,65 @@
             <!-- Hidden File Input for Slip -->
             <input type="file" id="slipUploadInput" accept="image/*" style="display: none;"
                 onchange="handleSlipUpload(this)">
+        </div>
+
+        <!-- Employee Detail Modal -->
+        <div id="employeeDetailModal" class="modal">
+            <div class="modal-content employee-detail">
+                <div class="employee-detail-header">
+                    <h3 id="detailName">ชื่อพนักงาน</h3>
+                    <button class="modal-close-btn" onclick="closeModal('employeeDetailModal')">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+
+                <div class="employee-detail-body">
+                    <!-- Info Grid -->
+                    <div class="detail-info-grid">
+                        <div class="detail-info-item">
+                            <span class="detail-icon"><i data-lucide="phone" class="icon-xs"></i></span>
+                            <span id="detailPhone">-</span>
+                        </div>
+                        <div class="detail-info-item">
+                            <span class="detail-icon"><i data-lucide="tag" class="icon-xs"></i></span>
+                            <span id="detailSupplier">-</span>
+                        </div>
+                        <div class="detail-info-item">
+                            <span class="detail-icon"><i data-lucide="credit-card" class="icon-xs"></i></span>
+                            <span id="detailBank">-</span>
+                        </div>
+                        <div class="detail-info-item">
+                            <span class="detail-icon"><i data-lucide="hash" class="icon-xs"></i></span>
+                            <span id="detailAccount">-</span>
+                        </div>
+                        <div class="detail-info-item">
+                            <span class="detail-icon"><i data-lucide="clock" class="icon-xs"></i></span>
+                            <span id="detailCheckIn">-</span>
+                        </div>
+                        <div class="detail-info-item">
+                            <span class="detail-icon"><i data-lucide="clock" class="icon-xs"></i></span>
+                            <span id="detailCheckOut">-</span>
+                        </div>
+                    </div>
+
+                    <!-- GPS Link -->
+                    <a id="detailGpsLink" href="#" target="_blank" class="detail-gps-link" style="display:none;">
+                        <i data-lucide="map-pin"></i> ดูตำแหน่ง GPS
+                    </a>
+
+                    <!-- Photos -->
+                    <div class="detail-photos">
+                        <div class="detail-photo-box">
+                            <p class="photo-label">Selfie เข้างาน</p>
+                            <img id="detailSelfie" src="" alt="Selfie" referrerpolicy="no-referrer">
+                        </div>
+                        <div class="detail-photo-box">
+                            <p class="photo-label">บัตรประชาชน</p>
+                            <img id="detailIdCard" src="" alt="ID Card" referrerpolicy="no-referrer">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Success Modal -->

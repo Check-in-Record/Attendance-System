@@ -1292,4 +1292,148 @@ async function searchAndFillData(phone) {
     }
 }
 
+// ===================================
+// Summary Dashboard Functions
+// ===================================
+let summaryDataCache = [];
 
+function initSummaryScreen() {
+    const filterDate = document.getElementById('summaryFilterDate');
+    const filterWarehouse = document.getElementById('summaryFilterWarehouse');
+
+    if (!filterDate.value) {
+        filterDate.value = new Date().toISOString().split('T')[0];
+    }
+    if (selectedWarehouse && filterWarehouse) {
+        filterWarehouse.value = selectedWarehouse;
+    }
+
+    showScreen('summaryScreen');
+    loadSummaryData();
+}
+
+async function loadSummaryData() {
+    const date = document.getElementById('summaryFilterDate').value;
+    const warehouse = document.getElementById('summaryFilterWarehouse').value;
+    const listContainer = document.getElementById('summaryWorkerList');
+
+    if (!date || !warehouse) return;
+
+    listContainer.innerHTML = `
+        <div class="loading-state">
+            <i data-lucide="loader" class="spin"></i>
+            <p>กำลังค้นหาข้อมูล...</p>
+        </div>
+    `;
+    lucide.createIcons();
+
+    try {
+        const response = await fetch(`${CONFIG.API_URL}?action=getAttendance&apiKey=${CONFIG.API_KEY}&date=${date}&warehouse=${encodeURIComponent(warehouse)}`);
+        const result = await response.json();
+
+        if (result.success && result.data && result.data.length > 0) {
+            summaryDataCache = result.data;
+
+            // Calculate stats
+            const total = result.data.length;
+            const working = result.data.filter(w => w.status === 'เข้างาน').length;
+            const done = result.data.filter(w => w.status === 'ออกงานแล้ว').length;
+            const paid = result.data.filter(w => w.slipUrl && w.slipUrl !== '').length;
+
+            // Update stat cards
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statWorking').textContent = working;
+            document.getElementById('statDone').textContent = done;
+            document.getElementById('statPaid').textContent = paid;
+
+            // Build employee list
+            let html = '';
+            result.data.forEach((worker, index) => {
+                const statusClass = worker.status === 'ออกงานแล้ว' ? 'success' : 'warning';
+                const statusText = worker.status || 'เข้างาน';
+                html += `
+                    <div class="summary-employee-card" onclick="showEmployeeDetail(${index})">
+                        <div class="emp-card-left">
+                            <div class="emp-name">${worker.fullName}</div>
+                            <div class="emp-meta">
+                                <span><i data-lucide="phone" class="icon-xs"></i> ${worker.phone}</span>
+                                <span class="worker-tag">${worker.supplier || '-'}</span>
+                            </div>
+                        </div>
+                        <div class="emp-card-right">
+                            <span class="worker-status-badge ${statusClass}">${statusText}</span>
+                            <div class="emp-time">${worker.checkInTime || '-'}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            listContainer.innerHTML = html;
+        } else {
+            summaryDataCache = [];
+            document.getElementById('statTotal').textContent = '0';
+            document.getElementById('statWorking').textContent = '0';
+            document.getElementById('statDone').textContent = '0';
+            document.getElementById('statPaid').textContent = '0';
+            listContainer.innerHTML = `
+                <div class="empty-state">
+                    <i data-lucide="info"></i>
+                    <p>ไม่พบข้อมูลพนักงานในวันที่เลือก</p>
+                </div>
+            `;
+        }
+        lucide.createIcons();
+    } catch (error) {
+        console.error('Load summary error:', error);
+        listContainer.innerHTML = `
+            <div class="error-state">
+                <i data-lucide="alert-circle"></i>
+                <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+            </div>
+        `;
+        lucide.createIcons();
+    }
+}
+
+function showEmployeeDetail(index) {
+    const worker = summaryDataCache[index];
+    if (!worker) return;
+
+    document.getElementById('detailName').textContent = worker.fullName || '-';
+    document.getElementById('detailPhone').textContent = `เบอร์: ${worker.phone || '-'}`;
+    document.getElementById('detailSupplier').textContent = `สังกัด: ${worker.supplier || '-'}`;
+    document.getElementById('detailBank').textContent = `ธนาคาร: ${worker.bankName || '-'}`;
+    document.getElementById('detailAccount').textContent = `บัญชี: ${worker.accountNumber || '-'}`;
+    document.getElementById('detailCheckIn').textContent = `เข้างาน: ${worker.checkInTime || '-'}`;
+    document.getElementById('detailCheckOut').textContent = `ออกงาน: ${worker.checkOutTime || '-'}`;
+
+    // GPS
+    const gpsLink = document.getElementById('detailGpsLink');
+    if (worker.gpsLocation) {
+        gpsLink.href = `https://www.google.com/maps?q=${worker.gpsLocation}`;
+        gpsLink.style.display = 'flex';
+    } else {
+        gpsLink.style.display = 'none';
+    }
+
+    // Photos
+    const selfieImg = document.getElementById('detailSelfie');
+    const idCardImg = document.getElementById('detailIdCard');
+
+    if (worker.selfieInUrl) {
+        selfieImg.src = worker.selfieInUrl;
+        selfieImg.style.display = 'block';
+    } else {
+        selfieImg.style.display = 'none';
+    }
+
+    if (worker.idCardUrl) {
+        idCardImg.src = worker.idCardUrl;
+        idCardImg.style.display = 'block';
+    } else {
+        idCardImg.style.display = 'none';
+    }
+
+    document.getElementById('employeeDetailModal').classList.add('active');
+    lucide.createIcons();
+}
