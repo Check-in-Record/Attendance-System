@@ -297,6 +297,58 @@ body {
     color: var(--dark);
 }
 
+/* Supplier Info Box */
+.supplier-info-box {
+    margin-top: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: left;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 1rem;
+    color: var(--text-main);
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.info-item strong {
+    font-weight: 600;
+}
+
+.info-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.info-dot.hr {
+    background: linear-gradient(135deg, #00b894, #55efc4);
+}
+
+.info-dot.outsource {
+    background: linear-gradient(135deg, #0984e3, #74b9ff);
+}
+
+.info-dot.temp {
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+}
+
+.info-dot.trd {
+    background: linear-gradient(135deg, #d63031, #ff7675);
+}
+
 /* Header */
 .app-header {
     background: linear-gradient(135deg, var(--primary), var(--primary-dark));

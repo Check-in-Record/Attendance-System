@@ -833,6 +833,10 @@ async function searchForReceipt() {
         return;
     }
 
+    // Reset OT fields
+    document.getElementById('otHours').value = '';
+    document.getElementById('calculationInfo').style.display = 'none';
+
     try {
         const response = await fetch(`${CONFIG.API_URL}?action=searchForReceipt&apiKey=${CONFIG.API_KEY}&warehouse=${encodeURIComponent(selectedWarehouse)}&phone=${encodeURIComponent(phone)}`);
         const result = await response.json();
@@ -858,14 +862,43 @@ async function searchForReceipt() {
     }
 }
 
+function calculateTotalAmount() {
+    const baseAmount = parseFloat(document.getElementById('paymentAmount').value) || 0;
+    const otHours = parseFloat(document.getElementById('otHours').value) || 0;
+
+    const calculationInfo = document.getElementById('calculationInfo');
+
+    if (baseAmount > 0) {
+        const hourlyRate = baseAmount / 8;
+        const otAmount = hourlyRate * 1.5 * otHours;
+        const totalAmount = baseAmount + otAmount;
+
+        document.getElementById('calcBaseAmount').textContent = baseAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' บาท';
+        document.getElementById('calcOtHoursDisplay').textContent = otHours;
+        document.getElementById('calcOtAmount').textContent = otAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' บาท';
+        document.getElementById('calcTotalAmount').textContent = totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' บาท';
+
+        calculationInfo.style.display = 'block';
+    } else {
+        calculationInfo.style.display = 'none';
+    }
+}
+
 function generateReceipt() {
     const amount = document.getElementById('paymentAmount').value;
+    const otHours = document.getElementById('otHours').value || 0;
     const customDate = document.getElementById('receiptDateInput').value;
 
     if (!amount || parseFloat(amount) <= 0) {
         showError('กรุณากรอกจำนวนเงิน');
         return;
     }
+
+    const baseAmountVal = parseFloat(amount);
+    const otHoursVal = parseFloat(otHours);
+    const hourlyRate = baseAmountVal / 8;
+    const otAmountVal = hourlyRate * 1.5 * otHoursVal;
+    const totalAmountVal = baseAmountVal + otAmountVal;
 
     // Format date (Buddhist era for Thai locale)
     const targetDate = customDate ? new Date(customDate) : new Date();
@@ -882,7 +915,25 @@ function generateReceipt() {
     document.getElementById('receiptBankName').textContent = currentReceiptData?.bankName || '-';
     document.getElementById('receiptAccountNumber').textContent = currentReceiptData?.accountNumber || '-';
 
-    document.getElementById('receiptAmountDisplay').textContent = parseFloat(amount).toLocaleString('th-TH', {
+    // Breakdown
+    document.getElementById('receiptBaseAmountDisplay').textContent = baseAmountVal.toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
+    const otRow = document.getElementById('receiptOtRow');
+    if (otHoursVal > 0) {
+        otRow.style.display = 'flex';
+        document.getElementById('receiptOtHoursDisplay').textContent = otHoursVal;
+        document.getElementById('receiptOtAmountDisplay').textContent = otAmountVal.toLocaleString('th-TH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    } else {
+        otRow.style.display = 'none';
+    }
+
+    document.getElementById('receiptAmountDisplay').textContent = totalAmountVal.toLocaleString('th-TH', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
@@ -904,12 +955,19 @@ async function exportReceipt() {
     }
 
     const amount = document.getElementById('paymentAmount').value;
+    const otHours = document.getElementById('otHours').value || 0;
     const customDate = document.getElementById('receiptDateInput').value;
 
     if (!amount || parseFloat(amount) <= 0) {
         showError('กรุณากรอกจำนวนเงิน');
         return;
     }
+
+    const baseAmountVal = parseFloat(amount);
+    const otHoursVal = parseFloat(otHours);
+    const hourlyRate = baseAmountVal / 8;
+    const otAmountVal = hourlyRate * 1.5 * otHoursVal;
+    const totalAmountVal = baseAmountVal + otAmountVal;
 
     const btn = document.querySelector('.btn-export');
     btn.innerHTML = '<i data-lucide="loader"></i> กำลังสร้าง PDF...';
@@ -930,7 +988,10 @@ async function exportReceipt() {
             fullName: currentReceiptData.fullName,
             bankName: currentReceiptData.bankName,
             accountNumber: currentReceiptData.accountNumber,
-            amount: parseFloat(amount),
+            amount: totalAmountVal,
+            baseAmount: baseAmountVal,
+            otHours: otHoursVal,
+            otAmount: otAmountVal,
             customDate: customDate || '',
             idCardPhotoUrl: currentReceiptData.idCardPhotoUrl || ''
         };
