@@ -843,6 +843,8 @@ async function searchForReceipt() {
 
         if (result.success && result.data) {
             currentReceiptData = result.data;
+            // Ensure rowIndex is preserved from search response
+            currentReceiptData.rowIndex = result.data.rowIndex;
             currentWageRates = result.wageRates || {}; // Update rates
 
             // Auto-fill price based on supplier
@@ -992,6 +994,8 @@ async function exportReceipt() {
             baseAmount: baseAmountVal,
             otHours: otHoursVal,
             otAmount: otAmountVal,
+            rowIndex: currentReceiptData.rowIndex || '',
+            warehouse: selectedWarehouse || '',
             customDate: customDate || '',
             idCardPhotoUrl: currentReceiptData.idCardPhotoUrl || ''
         };
