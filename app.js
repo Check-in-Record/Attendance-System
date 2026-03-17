@@ -22,6 +22,20 @@
 // ===================================
 // Configuration
 // ===================================
+// Version 4.1 - Feature Update: Employee Registration Added
+console.log("App.js Loaded - Version 4.1 (Registration Feature Active)");
+
+// ===================================
+// Utility Functions
+// ===================================
+function normalizePhone(phone) {
+    if (!phone) return '';
+    let p = String(phone).replace(/[^0-9]/g, '');
+    if (p.startsWith('66') && p.length >= 11) p = '0' + p.substring(2);
+    if (!p.startsWith('0') && p.length === 9) p = '0' + p;
+    return p;
+}
+
 const CONFIG = {
     // Google Apps Script Web App URL (ใช้ URL กลาง ไม่มี /a/freshket.co/)
     API_URL: 'https://script.google.com/macros/s/AKfycbzNM6dpfeOX1ImhGthjkPzD7XdUPwyYAF2HeFLVBCJOIC6ZxkYJ6glySWFHHRxZZIaNbA/exec',
@@ -628,41 +642,40 @@ async function submitCheckIn(event) {
         const now = new Date();
         const checkInTime = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-        // --- ไม้ตาย: Hidden Form Submission (ทำงานได้แน่นอน 100%) ---
-
-        // 1. สร้าง Form ปลอมๆ ขึ้นมา
+        // --- ส่งผ่าน Hidden Form Submit (วิธีเดียวที่ follow redirect ของ GAS ได้) ---
+        // สร้าง Form ปลอมๆ ขึ้นมา
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = CONFIG.API_URL;
-        form.target = 'hidden_iframe'; // ส่งข้อมูลไปที่ iframe ซ่อน (หน้าเว็บไม่เปลี่ยน)
+        form.target = 'hidden_iframe';
 
-        // 2. เตรียมข้อมูลที่จะส่ง
+        // เตรียมข้อมูลที่จะส่ง
         const payload = {
             action: 'checkIn',
             apiKey: CONFIG.API_KEY,
             warehouse: selectedWarehouse,
-            supplier: selectedSupplier, // New field
+            supplier: selectedSupplier,
             fullName: fullName,
             phone: phone,
             bankName: bankName,
             accountNumber: accountNumber,
             gpsLocation: gpsLocation,
             selfiePhoto: selfieBase64,
-            idCardPhoto: idCardBase64,       // Base64 สำหรับพนักงานใหม่ (จะเป็น '' ถ้าใช้ URL)
-            idCardPhotoUrl: idCardPhotoUrl,  // URL สำหรับพนักงานเก่าที่ autofill มา
+            idCardPhoto: idCardBase64,
+            idCardPhotoUrl: idCardPhotoUrl,
             checkInTime: checkInTime,
             checkInDate: now.toLocaleDateString('th-TH'),
             timestamp: now.toISOString()
         };
 
-        // 3. ใส่ข้อมูลลงใน input ซ่อน แล้วยัดใส่ Form
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'data'; // ชื่อตัวแปรต้องตรงกับที่ Code.gs รับ
-        input.value = JSON.stringify(payload);
-        form.appendChild(input);
+        // ใส่ข้อมูลลงใน input ซ่อน
+        const formInput = document.createElement('input');
+        formInput.type = 'hidden';
+        formInput.name = 'data';
+        formInput.value = JSON.stringify(payload);
+        form.appendChild(formInput);
 
-        // 4. สร้าง iframe ซ่อน (เพื่อไม่ให้หน้าเว็บเปลี่ยนหน้าไป Google)
+        // สร้าง iframe ซ่อน (เพื่อไม่ให้หน้าเว็บเปลี่ยนหน้าไป Google)
         if (!document.getElementById('hidden_iframe')) {
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
@@ -671,16 +684,13 @@ async function submitCheckIn(event) {
             document.body.appendChild(iframe);
         }
 
-        // 5. ส่ง Form!
+        // ส่ง Form!
         document.body.appendChild(form);
         form.submit();
 
-        // 6. แจ้งเตือนสำเร็จทันที (เพราะ Form submit ไม่มี callback ให้ JS)
-        console.log('Form submitted successfully');
+        console.log('Check-in form submitted');
         showSuccess('บันทึกเข้างานสำเร็จ!', `${fullName} เข้างานเวลา ${checkInTime}`);
-
-        // Cleanup
-        setTimeout(() => { document.body.removeChild(form); }, 1000);
+        setTimeout(() => { if (document.body.contains(form)) document.body.removeChild(form); }, 2000);
         resetCheckInForm();
         setTimeout(() => { showScreen('mainMenu'); }, 2000);
 
@@ -781,23 +791,35 @@ async function submitCheckOut(event) {
         const data = {
             action: 'checkOut',
             apiKey: CONFIG.API_KEY,
-            warehouse: selectedWarehouse, // New field
+            warehouse: selectedWarehouse,
             rowIndex: document.getElementById('checkOutRowId').value,
             checkoutSelfie: selfieBase64,
             checkOutTime: checkOutTime,
             timestamp: now.toISOString()
         };
 
-        // Send to Google Apps Script
-        try {
-            await fetch(CONFIG.API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify(data)
-            });
-        } catch (e) {
-            console.log('Request sent (CORS blocked response):', e);
+        // Check-Out ใช้ hidden form เหมือนกัน เพื่อให้ follow redirect ของ GAS
+        const checkOutForm = document.createElement('form');
+        checkOutForm.method = 'POST';
+        checkOutForm.action = CONFIG.API_URL;
+        checkOutForm.target = 'hidden_iframe';
+
+        const checkOutInput = document.createElement('input');
+        checkOutInput.type = 'hidden';
+        checkOutInput.name = 'data';
+        checkOutInput.value = JSON.stringify(data);
+        checkOutForm.appendChild(checkOutInput);
+
+        if (!document.getElementById('hidden_iframe')) {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.name = 'hidden_iframe';
+            iframe.id = 'hidden_iframe';
+            document.body.appendChild(iframe);
         }
+
+        document.body.appendChild(checkOutForm);
+        checkOutForm.submit();
 
         // Show success
         showSuccess('บันทึกออกงานสำเร็จ!', `ออกงานเวลา ${checkOutTime}`);
@@ -1507,4 +1529,664 @@ function showEmployeeDetail(index) {
 
     document.getElementById('employeeDetailModal').classList.add('active');
     lucide.createIcons();
+}
+
+/* ===================================
+   Face Scan (AI Beta) Logic
+   =================================== */
+let isFaceModelsLoaded = false;
+let faceDetectionInterval = null;
+
+async function loadFaceModels() {
+    if (isFaceModelsLoaded) return true;
+
+    const statusBadge = document.getElementById('faceScanStatus');
+    const statusText = statusBadge.querySelector('span');
+
+    try {
+        statusText.textContent = "กำลังโหลดระบบ AI (1/3)...";
+        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model');
+
+        statusText.textContent = "กำลังโหลดระบบ AI (2/3)...";
+        await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model');
+
+        statusText.textContent = "กำลังโหลดระบบ AI (3/3)...";
+        await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model');
+
+        isFaceModelsLoaded = true;
+        statusText.textContent = "ระบบ AI พร้อมใช้งาน";
+        console.log("All Face-API models loaded successfully");
+        return true;
+    } catch (error) {
+        console.error('Face models load error:', error);
+        statusText.textContent = "โหลด AI ไม่สำเร็จ กรุณาลองใหม่";
+        return false;
+    }
+}
+
+let registeredFaceDescriptors = [];
+let recognizedEmployee = null; // Track recognized employee during scan
+
+async function startFaceScanMode() {
+    showScreen('faceScanScreen');
+    const video = document.getElementById('faceVideo');
+    const statusBadge = document.getElementById('faceScanStatus');
+    const statusText = statusBadge.querySelector('span');
+    const cameraBox = document.getElementById('faceCameraBox');
+
+    const loaded = await loadFaceModels();
+    if (!loaded) return;
+
+    try {
+        statusText.textContent = "กำลังดึงข้อมูลใบหน้าจากระบบ...";
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'getAllFaceDescriptors',
+                apiKey: CONFIG.API_KEY,
+                warehouse: selectedWarehouse
+            })
+        });
+        const result = await response.json();
+
+        // Always log the debug info from the server
+        if (result.debug) console.log('--- SERVER DEBUG:', result.debug);
+
+        if (result.success) {
+            registeredFaceDescriptors = result.descriptors;
+            const count = registeredFaceDescriptors.length;
+            console.log('--- FACE DEBUG: Loaded', count, 'records');
+
+            if (count > 0) {
+                statusText.textContent = `โหลดข้อมูลสำเร็จ: รู้จัก ${count} คน`;
+                try {
+                    window.globalFaceMatcher = new faceapi.FaceMatcher(
+                        registeredFaceDescriptors.map(d => {
+                            return new faceapi.LabeledFaceDescriptors(
+                                d.fullName + "|" + d.phone,
+                                [new Float32Array(Object.values(d.descriptor))]
+                            );
+                        }),
+                        0.45  // Strict threshold: < 0.45 = same person (0.65 was too loose)
+                    );
+                    console.log('--- AI Debug: FaceMatcher initialized with', count, 'records');
+                } catch (matcherErr) {
+                    console.error('FaceMatcher init error:', matcherErr);
+                    statusText.textContent = "AI เริ่มต้นผิดพลาด: " + matcherErr.message.substring(0, 40);
+                }
+            } else {
+                const debugInfo = result.debug ? result.debug.join(' | ') : '';
+                statusText.textContent = "ไม่พบข้อมูลใบหน้าในระบบ คลิก 'สแกนไม่สำเร็จ?' เพื่อเข้าด้วยเบอร์โทร";
+                console.warn('No descriptors found. Server debug:', debugInfo);
+            }
+        } else {
+            statusText.textContent = "เซิร์ฟเวอร์ผิดพลาด: " + (result.error || 'Unknown Error');
+            console.error('Server error:', result);
+        }
+    } catch (e) {
+        console.error('Face descriptors load failed', e);
+        statusText.textContent = "เชื่อมต่อ Server ไม่ได้ (กรุณารีเฟรช)";
+    }
+
+    try {
+        statusText.textContent = "กำลังเปิดกล้อง...";
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }
+        });
+        video.srcObject = stream;
+        cameraStream = stream;
+
+        video.onloadedmetadata = () => {
+            statusBadge.classList.add('detecting');
+            statusText.textContent = "กำลังมองหาใบหน้า...";
+            lucide.createIcons();
+
+            let frameCount = 0;
+            faceDetectionInterval = setInterval(async () => {
+                const faceVideo = document.getElementById('faceVideo');
+                if (!faceVideo || faceVideo.paused || faceVideo.ended) return;
+
+                frameCount++;
+                if (frameCount % 4 === 0 && !recognizedEmployee) {
+                    const currentStatus = statusText.textContent;
+                    // Only tick if we are in a generic scanning state
+                    if (currentStatus.includes('มองหา') || currentStatus.includes('วิเคราะห์') || currentStatus.includes('Dist')) {
+                        statusText.textContent = "กำลังมองหาใบหน้า... (" + (frameCount % 10) + ")";
+                    }
+                }
+
+                try {
+                    // Try to detect face with a more lenient threshold (0.3)
+                    const detections = await faceapi.detectSingleFace(
+                        faceVideo,
+                        new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 })
+                    ).withFaceLandmarks().withFaceDescriptor();
+
+                    if (detections) {
+                        cameraBox.classList.add('active-detection');
+
+                        if (window.globalFaceMatcher) {
+                            const bestMatch = window.globalFaceMatcher.findBestMatch(detections.descriptor);
+                            const dist = bestMatch.distance.toFixed(2);
+
+                            if (bestMatch.label !== 'unknown' && bestMatch.distance < 0.50) {
+                                // Extra strict check: distance must be < 0.50 (safety margin above 0.45)
+                                const labelParts = bestMatch.label.split('|');
+                                const name = labelParts[0];
+                                const phone = labelParts[1];
+
+                                // New or different person detected
+                                if (!recognizedEmployee || recognizedEmployee.phone !== phone) {
+                                    const fullData = registeredFaceDescriptors.find(d => normalizePhone(d.phone) === normalizePhone(phone));
+                                    recognizedEmployee = {
+                                        fullName: name,
+                                        phone: phone,
+                                        bankName: (fullData && fullData.bankName) ? fullData.bankName : '',
+                                        accountNumber: (fullData && fullData.accountNumber) ? fullData.accountNumber : '',
+                                        supplier: (fullData && (fullData.supplier || fullData.supplierName)) ? (fullData.supplier || fullData.supplierName) : '',
+                                        idCardPhotoUrl: (fullData && (fullData.idCardUrl || fullData.idCardPhotoUrl)) ? (fullData.idCardUrl || fullData.idCardPhotoUrl) : ''
+                                    };
+
+                                    // Confidence: distance 0 = perfect, 0.45 = threshold boundary
+                                    const confidencePct = Math.round((1 - bestMatch.distance) * 100);
+                                    const isHighConfidence = bestMatch.distance < 0.38;
+                                    const confidenceLabel = isHighConfidence
+                                        ? `✅ ยืนยันได้ (${confidencePct}%)`
+                                        : `⚠️ ใกล้เคียง กรุณาตรวจสอบรูป (${confidencePct}%)`;
+
+                                    statusText.textContent = `ยินดีต้อนรับ: ${name}`;
+                                    statusBadge.classList.remove('detecting');
+                                    statusBadge.classList.add('success');
+
+                                    // Show employee info card for verification
+                                    let verifyBox = document.getElementById('faceVerifyBox');
+                                    if (!verifyBox) {
+                                        verifyBox = document.createElement('div');
+                                        verifyBox.id = 'faceVerifyBox';
+                                        verifyBox.style.cssText = 'margin:8px 0;padding:10px 12px;background:#f0f9ff;border:2px solid #3b82f6;border-radius:12px;font-size:13px;text-align:left;';
+                                        document.getElementById('faceScanActions').parentNode.insertBefore(verifyBox, document.getElementById('faceScanActions'));
+                                    }
+
+                                    // Get current date/time (Thailand timezone)
+                                    const now = new Date();
+                                    const todayStr = now.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+                                    // Get GPS from current location
+                                    const gpsText = (typeof currentLocation !== 'undefined' && currentLocation)
+                                        ? `${currentLocation.latitude?.toFixed(5)}, ${currentLocation.longitude?.toFixed(5)}`
+                                        : 'กำลังรับตำแหน่ง...';
+
+                                    const bankDisplay = recognizedEmployee.bankName
+                                        ? `${recognizedEmployee.bankName} – ${recognizedEmployee.accountNumber || '-'}`
+                                        : '-';
+
+                                    const confidenceBadge = isHighConfidence
+                                        ? `<span style="color:#16a34a;font-weight:bold;">✅ ${confidencePct}%</span>`
+                                        : `<span style="color:#d97706;font-weight:bold;">⚠️ ${confidencePct}% (กรุณาตรวจสอบ)</span>`;
+
+                                    verifyBox.innerHTML = `
+                                        <div style="font-weight:bold;margin-bottom:6px;color:#1e40af;">📋 ตรวจสอบข้อมูลก่อนยืนยัน ${confidenceBadge}</div>
+                                        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                            <tr><td style="color:#64748b;padding:2px 4px;">📅 วันที่</td><td style="padding:2px 4px;font-weight:500;">${todayStr}</td></tr>
+                                            <tr><td style="color:#64748b;padding:2px 4px;">👤 ชื่อ-นามสกุล</td><td style="padding:2px 4px;font-weight:500;">${recognizedEmployee.fullName}</td></tr>
+                                            <tr><td style="color:#64748b;padding:2px 4px;">📱 เบอร์โทร</td><td style="padding:2px 4px;">${recognizedEmployee.phone || '-'}</td></tr>
+                                            <tr><td style="color:#64748b;padding:2px 4px;">🏦 ธนาคาร/บัญชี</td><td style="padding:2px 4px;">${bankDisplay}</td></tr>
+                                            <tr><td style="color:#64748b;padding:2px 4px;">📍 GPS</td><td style="padding:2px 4px;">${gpsText}</td></tr>
+                                            <tr><td style="color:#64748b;padding:2px 4px;">🏢 สังกัด</td><td style="padding:2px 4px;">${recognizedEmployee.supplier || selectedSupplier || '-'}</td></tr>
+                                        </table>
+                                    `;
+
+                                    document.getElementById('faceScanActions').style.display = 'block';
+                                    document.querySelector('.scan-instructions').style.display = 'none';
+                                    if (window.navigator.vibrate) window.navigator.vibrate(100);
+                                }
+                            } else {
+                                if (!recognizedEmployee) {
+                                    statusText.textContent = `วิเคราะห์ใบหน้า... (Dist: ${dist})`;
+                                }
+                            }
+                        } else {
+                            // Don't overwrite error/empty message if already set
+                            if (statusText.textContent.indexOf('สำเร็จ') === -1 && statusText.textContent.indexOf('ไม่พบ') === -1) {
+                                statusText.textContent = "ตรวจพบใบหน้า (ฐานข้อมูลยังไม่พร้อม)";
+                            }
+                        }
+                    } else {
+                        cameraBox.classList.remove('active-detection');
+                        if (!recognizedEmployee) {
+                            statusBadge.classList.remove('success');
+                            statusBadge.classList.add('detecting');
+                            statusText.textContent = "กรุณาวางใบหน้าในกรอบ...";
+                        }
+                    }
+                } catch (err) {
+                    console.error('--- AI Loop Error:', err);
+                    statusText.textContent = "AI Error: " + err.message.substring(0, 30);
+                }
+            }, 500);
+        };
+    } catch (error) {
+        console.error('Camera error:', error);
+        statusText.textContent = "เข้าถึงกล้องไม่ได้";
+    }
+}
+
+async function submitFaceAttendance(type) {
+    if (!recognizedEmployee) {
+        alert('กรุณาสแกนใบหน้าให้สำเร็จก่อน');
+        return;
+    }
+
+    const confirmMsg = type === 'checkIn' ? 'ยืนยันการเข้างาน?' : 'ยืนยันการออกงาน?';
+    if (!confirm(confirmMsg)) return;
+
+    // Get current location
+    let location = { latitude: 0, longitude: 0 };
+    try {
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    } catch (e) {
+        console.warn('GPS Required for attendance');
+        alert('กรุณาเปิด GPS เพื่อลงเวลา');
+        return;
+    }
+
+    // Capture photo from video stream
+    const video = document.getElementById('faceVideo');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 640;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const photoData = canvas.toDataURL('image/jpeg', 0.8);
+
+    // Show loading on the button
+    const btnClass = type === 'checkIn' ? '.checkin-btn' : '.checkout-btn';
+    const btn = document.querySelector(btnClass);
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="spin-icon"></i> กำลังบันทึก...';
+
+    // Use supplier from employee data, or fall back to what was selected in the main menu
+    const effectiveSupplier = recognizedEmployee.supplier || selectedSupplier || '';
+
+    const payload = {
+        action: type,
+        apiKey: CONFIG.API_KEY,
+        warehouse: selectedWarehouse,
+        fullName: recognizedEmployee.fullName,
+        phone: recognizedEmployee.phone,
+        bankName: recognizedEmployee.bankName,
+        accountNumber: recognizedEmployee.accountNumber,
+        supplier: effectiveSupplier,
+        idCardPhotoUrl: recognizedEmployee.idCardPhotoUrl,
+        selfiePhoto: type === 'checkIn' ? photoData : '',
+        checkoutSelfie: type === 'checkOut' ? photoData : '',
+        latitude: location.latitude,
+        longitude: location.longitude,
+        timestamp: new Date().toISOString()
+    };
+
+    try {
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert(type === 'checkIn' ? 'ลงเวลาเข้างานสำเร็จ!' : 'ลงเวลาออกงานสำเร็จ!');
+            stopFaceScanMode();
+        } else {
+            alert('ล้มเหลว: ' + result.error);
+        }
+    } catch (e) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        lucide.createIcons();
+    }
+}
+
+function stopFaceScanMode() {
+    if (faceDetectionInterval) clearInterval(faceDetectionInterval);
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    const video = document.getElementById('faceVideo');
+    if (video) video.srcObject = null;
+    const statusBadge = document.getElementById('faceScanStatus');
+    statusBadge.classList.remove('detecting', 'success');
+    statusBadge.querySelector('span').textContent = "กำลังโหลดระบบ AI...";
+    document.getElementById('faceCameraBox').classList.remove('active-detection');
+    showScreen('mainMenu');
+}
+
+/**
+ * Fallback Manual Search Logic
+ */
+function showManualSearch() {
+    showScreen('manualSearchScreen');
+    document.getElementById('manualSearchPhone').value = '';
+    document.getElementById('manualSearchPhone').focus();
+}
+
+async function performManualSearch() {
+    const phoneInput = document.getElementById('manualSearchPhone');
+    const phone = phoneInput.value;
+    if (phone.length < 10) {
+        alert('กรุณาระบุเข้าเบอร์โทรศัพท์ให้ถูกต้อง');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'getLastCheckIn',
+                apiKey: CONFIG.API_KEY,
+                phone: phone,
+                warehouse: selectedWarehouse
+            })
+        });
+        const result = await response.json();
+        showLoading(false);
+
+        if (result.success && result.data) {
+            const worker = result.data;
+            recognizedEmployee = {
+                fullName: worker.fullName,
+                phone: worker.phone,
+                bankName: worker.bankName || '',
+                accountNumber: worker.accountNumber || '',
+                supplier: worker.supplier || '',
+                idCardPhotoUrl: (worker.idCardUrl || worker.idCardPhotoUrl) || ''
+            };
+
+            // Switch back to scan screen but show actions
+            showScreen('faceScanScreen');
+            const statusBadge = document.getElementById('faceScanStatus');
+            const statusText = statusBadge.querySelector('span');
+
+            statusText.textContent = `พบข้อมูลคุณ: ${worker.fullName}`;
+            statusBadge.classList.remove('detecting');
+            statusBadge.classList.add('success');
+
+            document.getElementById('faceScanActions').style.display = 'block';
+            document.querySelector('.scan-instructions').style.display = 'none';
+        } else {
+            alert('ไม่พบข้อมูลเบอร์โทรศัพท์นี้ในระบบ (คุณอาจจะยังไม่เคยลงทะเบียน)');
+        }
+    } catch (e) {
+        showLoading(false);
+        console.error('Manual search error:', e);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+    }
+}
+
+/**
+ * Face Registration Logic
+ */
+let regEmployeeData = null;
+
+async function searchForRegistration() {
+    const phone = document.getElementById('regPhone').value;
+    if (phone.length < 10) return;
+
+    showLoading(true);
+    try {
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'getLastCheckIn',
+                apiKey: CONFIG.API_KEY,
+                phone: phone,
+                warehouse: selectedWarehouse
+            })
+        });
+        const result = await response.json();
+        if (result.success) {
+            regEmployeeData = result.data;
+            document.getElementById('regEmployeeName').textContent = regEmployeeData.fullName;
+            document.getElementById('regCameraSection').style.display = 'block';
+            startRegCamera();
+        } else {
+            alert('ไม่พบข้อมูลพนักงานคนนี้ในระบบ');
+        }
+    } catch (e) {
+        alert('เกิดข้อผิดพลาดในการค้นหา');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function startRegCamera() {
+    const video = document.getElementById('regVideo');
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        video.srcObject = stream;
+        cameraStream = stream;
+        await loadFaceModels();
+        lucide.createIcons();
+    } catch (e) {
+        console.error('Reg camera error:', e);
+    }
+}
+
+async function startEnrollment() {
+    const video = document.getElementById('regVideo');
+    const btn = document.getElementById('btnStartEnroll');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="spin-icon"></i> กำลังตรวจจับใบหน้า...';
+
+    try {
+        const detection = await faceapi.detectSingleFace(
+            video,
+            new faceapi.TinyFaceDetectorOptions()
+        ).withFaceLandmarks().withFaceDescriptor();
+
+        if (detection) {
+            btn.innerHTML = '<i class="spin-icon"></i> กำลังบันทึกข้อมูล...';
+            const response = await fetch(CONFIG.API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'registerFace',
+                    apiKey: CONFIG.API_KEY,
+                    warehouse: selectedWarehouse,
+                    phone: regEmployeeData.phone,
+                    descriptor: Array.from(detection.descriptor)
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert('ลงทะเบียนใบหน้าสำเร็จ!');
+                stopFaceRegistrationMode();
+            }
+        } else {
+            alert('ไม่พบใบหน้า กรุณาจัดตำแหน่งให้ตรงกล้อง');
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="camera"></i> เริ่มบันทึกใบหน้า';
+        }
+    } catch (e) {
+        alert('เกิดข้อผิดพลาดในการลงทะเบียน');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="camera"></i> เริ่มบันทึกใบหน้า';
+    }
+    lucide.createIcons();
+}
+
+function stopFaceRegistrationMode() {
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    const video = document.getElementById('regVideo');
+    if (video) video.srcObject = null;
+    document.getElementById('regCameraSection').style.display = 'none';
+    document.getElementById('regPhone').value = '';
+    showScreen('adminMenu');
+}
+
+/**
+ * New Employee Registration Logic (Master Data)
+ */
+let regIdCardPhoto = null;
+let regFaceDescriptor = null;
+let regFaceDetectionInterval = null;
+
+async function initRegistrationScreen() {
+    showScreen('registrationScreen');
+    document.getElementById('registrationForm').reset();
+    document.getElementById('idCardPreview').style.display = 'none';
+    document.getElementById('idCardPlaceholder').style.display = 'flex';
+    regIdCardPhoto = null;
+    regFaceDescriptor = null;
+
+    const faceVideo = document.getElementById('regFaceVideo');
+    const faceStatus = document.getElementById('regFaceStatus');
+    const statusText = faceStatus.querySelector('span');
+
+    await loadFaceModels();
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: 200, height: 200 }
+        });
+        faceVideo.srcObject = stream;
+        cameraStream = stream;
+
+        faceStatus.classList.add('detecting');
+        regFaceDetectionInterval = setInterval(async () => {
+            if (faceVideo.paused || faceVideo.ended) return;
+
+            // Use slightly more sensitive detection options
+            const detection = await faceapi.detectSingleFace(
+                faceVideo,
+                new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 })
+            ).withFaceLandmarks().withFaceDescriptor();
+
+            if (detection) {
+                regFaceDescriptor = Array.from(detection.descriptor);
+                faceStatus.classList.remove('detecting');
+                faceStatus.classList.add('success');
+                statusText.textContent = "ตรวจพบใบหน้าเรียบร้อย (Ready)";
+                // Add a small haptic nudge if supported
+                if (navigator.vibrate) navigator.vibrate(50);
+            } else {
+                faceStatus.classList.remove('success');
+                faceStatus.classList.add('detecting');
+                statusText.textContent = "กรุณาส่องหน้าให้ชัดเจน";
+            }
+        }, 800);
+    } catch (e) {
+        console.error('Registration camera error:', e);
+    }
+}
+
+async function captureIdCard() {
+    const video = document.getElementById('idCardVideo');
+    const canvas = document.getElementById('idCardCanvas');
+    const preview = document.getElementById('idCardPreview');
+    const placeholder = document.getElementById('idCardPlaceholder');
+
+    if (video.style.display === 'none') {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            video.style.display = 'block';
+            placeholder.style.display = 'none';
+            preview.style.display = 'none';
+        } catch (e) {
+            alert('ไม่สามารถเข้าถึงกล้องได้');
+        }
+    } else {
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+
+        regIdCardPhoto = canvas.toDataURL('image/jpeg', 0.8);
+        preview.src = regIdCardPhoto;
+        preview.style.display = 'block';
+        video.style.display = 'none';
+
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(t => t.stop());
+        }
+    }
+}
+
+async function submitRegistration(event) {
+    event.preventDefault();
+    if (!regFaceDescriptor) {
+        alert('กรุณาสแกนใบหน้าให้สำเร็จก่อนลงทะเบียน');
+        return;
+    }
+    if (!regIdCardPhoto) {
+        alert('กรุณาถ่ายรูปบัตรประชาชน');
+        return;
+    }
+
+    const btn = document.getElementById('btnSubmitReg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="spin-icon"></i> กำลังส่งข้อมูล...';
+
+    const payload = {
+        action: 'registerNewEmployee',
+        apiKey: CONFIG.API_KEY,
+        warehouse: selectedWarehouse,
+        fullName: document.getElementById('regFullName').value,
+        phone: document.getElementById('regFormPhone').value,
+        supplier: document.getElementById('regSupplier').value,
+        bankName: document.getElementById('regBankName').value,
+        accountNumber: document.getElementById('regAccountNumber').value,
+        idCardPhoto: regIdCardPhoto,
+        faceDescriptor: regFaceDescriptor
+    };
+
+    try {
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('ลงทะเบียนสำเร็จ! พนักงานสามารถใช้ระบบสแกนหน้าได้ทันที');
+            stopRegistrationMode();
+        } else {
+            alert('ลงทะเบียนไม่สำเร็จ: ' + result.error);
+        }
+    } catch (e) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check-circle"></i> ยืนยันการลงทะเบียน';
+        lucide.createIcons();
+    }
+}
+
+function stopRegistrationMode() {
+    if (regFaceDetectionInterval) {
+        clearInterval(regFaceDetectionInterval);
+        regFaceDetectionInterval = null;
+    }
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+    }
+    const faceVideo = document.getElementById('regFaceVideo');
+    if (faceVideo) faceVideo.srcObject = null;
+
+    const idVideo = document.getElementById('idCardVideo');
+    if (idVideo && idVideo.srcObject) {
+        idVideo.srcObject.getTracks().forEach(t => t.stop());
+        idVideo.srcObject = null;
+    }
+
+    showScreen('mainMenu');
 }
