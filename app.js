@@ -1001,7 +1001,8 @@ async function exportReceipt() {
             rowIndex: currentReceiptData.rowIndex || '',
             warehouse: selectedWarehouse || '',
             customDate: customDate || '',
-            idCardPhotoUrl: currentReceiptData.idCardPhotoUrl || ''
+            idCardPhotoUrl: currentReceiptData.idCardPhotoUrl || '',
+            idCardPhotoBase64: currentReceiptData.idCardPhotoBase64 || ''
         };
 
         for (const [key, value] of Object.entries(fields)) {
