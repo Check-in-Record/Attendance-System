@@ -347,11 +347,19 @@ function updateGPSStatus(status, message) {
 // ===================================
 // Photo Functions
 // ===================================
-// Image compression function
-async function compressImage(file, maxWidth = 1024, quality = 0.7) {
-    return new Promise((resolve) => {
+/**
+ * Compress image before sending to avoid GAS payload limits
+ * Returns a Base64 Data URL
+ */
+function compressImage(fileOrBlob, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        // If it's already a base64 string (e.g. from a previous step), just return it
+        if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
+            return resolve(fileOrBlob);
+        }
+
         const reader = new FileReader();
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(fileOrBlob);
         reader.onload = (event) => {
             const img = new Image();
             img.src = event.target.result;
@@ -360,6 +368,7 @@ async function compressImage(file, maxWidth = 1024, quality = 0.7) {
                 let width = img.width;
                 let height = img.height;
 
+                // Adjust size while maintaining aspect ratio
                 if (width > height) {
                     if (width > maxWidth) {
                         height *= maxWidth / width;
@@ -376,16 +385,14 @@ async function compressImage(file, maxWidth = 1024, quality = 0.7) {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob((blob) => {
-                    const compressedFile = new File([blob], file.name, {
-                        type: 'image/jpeg',
-                        lastModified: Date.now()
-                    });
-                    resolve(compressedFile);
-                }, 'image/jpeg', quality);
+                
+                // Return as Data URL
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(dataUrl);
             };
+            img.onerror = (err) => reject(new Error('Image load failed'));
         };
+        reader.onerror = (err) => reject(new Error('File read failed'));
     });
 }
 
@@ -395,20 +402,17 @@ async function previewPhoto(input, previewId) {
         showLoading(true);
         try {
             const originalFile = input.files[0];
-            const compressedFile = await compressImage(originalFile);
+            // Compress and get Data URL
+            const compressedBase64 = await compressImage(originalFile);
 
-            // Store in global object instead of trying to write back to input.files (which fails on iOS)
-            capturedPhotos[previewId] = compressedFile;
+            // Store Base64 string directly
+            capturedPhotos[previewId] = compressedBase64;
 
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const preview = document.getElementById(previewId);
-                if (preview) {
-                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-                    preview.classList.add('has-image');
-                }
-            };
-            reader.readAsDataURL(compressedFile);
+            const preview = document.getElementById(previewId);
+            if (preview) {
+                preview.innerHTML = `<img src="${compressedBase64}" alt="Preview">`;
+                preview.classList.add('has-image');
+            }
         } catch (error) {
             console.error("Compression error:", error);
             showError("ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่");
@@ -416,48 +420,6 @@ async function previewPhoto(input, previewId) {
             showLoading(false);
         }
     }
-}
-
-function getBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-}
-
-/**
- * Compress image before sending to avoid GAS payload limits
- */
-function compressImage(file, maxWidth = 800, quality = 0.7) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                if (width > maxWidth) {
-                    height = (maxWidth / width) * height;
-                    width = maxWidth;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Return as base64 but with prefix removed
-                const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-                resolve(compressedBase64);
-            };
-        };
-    });
 }
 
 // Custom Camera Modal functions
@@ -555,31 +517,29 @@ function takePicture() {
     // Draw video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to high quality JPEG
+    // Convert to high quality JPEG and compress
     canvas.toBlob(async (blob) => {
-        const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+        try {
+            const compressedBase64 = await compressImage(blob);
 
-        // Compress the captured image
-        const compressedFile = await compressImage(file);
+            // Store Base64 string directly
+            if (currentCameraTargetPreviewId) {
+                capturedPhotos[currentCameraTargetPreviewId] = compressedBase64;
+            }
 
-        // Store in global object
-        if (currentCameraTargetPreviewId) {
-            capturedPhotos[currentCameraTargetPreviewId] = compressedFile;
-        }
-
-        // Preview the compressed image
-        const reader = new FileReader();
-        reader.onload = function (e) {
+            // Preview immediately from Data URL
             const preview = document.getElementById(currentCameraTargetPreviewId);
             if (preview) {
-                preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                preview.innerHTML = `<img src="${compressedBase64}" alt="Preview">`;
                 preview.classList.add('has-image');
             }
-        };
-        reader.readAsDataURL(compressedFile);
 
-        closeCameraModal();
-    }, 'image/jpeg', 0.9);
+            closeCameraModal();
+        } catch (error) {
+            console.error("Capture capture error:", error);
+            showError("ไม่สามารถประมวลผลการถ่ายภาพได้");
+        }
+    }, 'image/jpeg', 0.8);
 }
 
 // ===================================
@@ -666,15 +626,18 @@ async function submitCheckIn(event) {
         if (!idCardFile && !returningEmployee) throw new Error('กรุณาถ่ายรูปบัตรประชาชน');
         if (!gpsLocation) throw new Error('กรุณาเปิด GPS และรอจนกว่าตำแหน่งจะขึ้น');
 
-        // --- บีบอัดรูปภาพก่อนส่ง ---
-        const selfieBase64 = await compressImage(selfieFile, 800, 0.7);
+        // --- รูปภาพถูกบีบอัดและเป็น Base64 อยู่แล้วใน capturedPhotos ---
+        const selfieBase64 = capturedPhotos['selfiePreview'];
+        const idCardFileState = capturedPhotos['idCardPreview'];
         
         let idCardBase64 = '';
-        const isIdCardUrl = typeof idCardFile === 'string' && idCardFile.startsWith('http');
-        const idCardPhotoUrl = isIdCardUrl ? idCardFile : '';
+        const isIdCardUrl = typeof idCardFileState === 'string' && idCardFileState.startsWith('http');
+        const idCardPhotoUrl = isIdCardUrl ? idCardFileState : '';
         
-        if (!isIdCardUrl && idCardFile) {
-            idCardBase64 = await compressImage(idCardFile, 800, 0.7);
+        if (!isIdCardUrl && idCardFileState) {
+            // ถ้าเป็น Base64 string (จากกล้อง/อัลบั้ม) ให้ใช้ได้เลย
+            // ถ้าบังเอิญยังเป็น File อยู่ (กรณี fallback) ให้บีบอัดก่อน
+            idCardBase64 = await compressImage(idCardFileState, 800, 0.7);
         }
 
         const now = new Date();
