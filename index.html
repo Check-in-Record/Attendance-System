@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 
 <head>
@@ -20,7 +20,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <link rel="stylesheet" href="styles.css">
+    <!-- face-api.js for Experimental AI Face Detection -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <link rel="stylesheet" href="styles.css?v=3">
+    <link rel="stylesheet" href="face-attendance-styles.css?v=2">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7C3AED">
 </head>
@@ -161,6 +165,7 @@
                 <p class="welcome-subtitle">พนักงานพาร์ทไทม์</p>
 
                 <div class="menu-grid">
+                    <!-- 1. Check-In -->
                     <button class="menu-card" onclick="showScreen('checkInScreen')">
                         <div class="menu-icon checkin">
                             <i data-lucide="log-in"></i>
@@ -169,12 +174,31 @@
                         <span class="menu-desc">ลงเวลาเข้างาน</span>
                     </button>
 
+                    <!-- 2. Check-Out -->
                     <button class="menu-card" onclick="showScreen('checkOutScreen')">
                         <div class="menu-icon checkout">
                             <i data-lucide="log-out"></i>
                         </div>
                         <span class="menu-label">ออกงาน</span>
                         <span class="menu-desc">ลงเวลาออกงาน</span>
+                    </button>
+
+                    <!-- Hidden legacy registration -->
+                    <button class="menu-card special-card reg-card" onclick="initRegistrationScreen()" style="display: none;">
+                        <div class="menu-icon registration">
+                            <i data-lucide="user-plus"></i>
+                        </div>
+                        <span class="menu-label">ลงทะเบียนพนักงาน</span>
+                        <span class="menu-desc">สำหรับคนเข้าใหม่</span>
+                    </button>
+
+                    <!-- Hidden legacy AI Face Scan -->
+                    <button class="menu-card special-card" onclick="startFaceScanMode()" style="display: none;">
+                        <div class="menu-icon face-scan">
+                            <i data-lucide="scan-eye"></i>
+                        </div>
+                        <span class="menu-label">สแกนใบหน้า</span>
+                        <span class="menu-desc">ระบบ AI (Beta)</span>
                     </button>
                 </div>
             </div>
@@ -214,6 +238,15 @@
                         </div>
                         <span class="menu-label">สรุปรายวัน</span>
                         <span class="menu-desc">ดูข้อมูลพนักงานรายวัน</span>
+                    </button>
+
+                    <!-- Hidden legacy Admin Face Registration -->
+                    <button class="menu-card special-card" onclick="showScreen('faceRegistrationScreen')" style="display: none;">
+                        <div class="menu-icon face-scan">
+                            <i data-lucide="user-plus"></i>
+                        </div>
+                        <span class="menu-label">ลงทะเบียนใบหน้า</span>
+                        <span class="menu-desc">เพื่อระบบจดจำใบหน้า</span>
                     </button>
                 </div>
             </div>
@@ -870,6 +903,207 @@
             </div>
         </div>
 
+        <!-- Face Scan (Experimental AI) Screen -->
+        <div id="faceScanScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="stopFaceScanMode()">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <h2>สแกนใบหน้า (AI Beta)</h2>
+            </div>
+
+            <div class="camera-container-wrapper">
+                <div class="camera-box" id="faceCameraBox">
+                    <video id="faceVideo" autoplay muted playsinline></video>
+                    <canvas id="faceOverlay"></canvas>
+                    <div class="face-guide">
+                        <div class="scanner-line"></div>
+                    </div>
+                </div>
+
+                <div id="faceScanStatus" class="scan-status-badge">
+                    <i data-lucide="info"></i>
+                    <span>กำลังโหลดระบบ AI...</span>
+                </div>
+
+                <div class="scan-instructions">
+                    <p>กรุณาวางใบหน้าให้อยู่ภายในกรอบวงกลม</p>
+                    <p class="hint">ระบบจะสแกนอัตโนมัติเมื่ออยู่ในตำแหน่งที่ถูกต้อง</p>
+                    <button class="btn-link" onclick="showManualSearch()"
+                        style="margin-top: 15px; font-size: 0.9em; color: var(--primary);">
+                        สแกนไม่สำเร็จ? ค้นหาด้วยเบอร์โทร
+                    </button>
+                </div>
+
+                <!-- NEW: Attendance Actions (Hidden by default) -->
+                <div id="faceScanActions" class="face-actions-container" style="display: none;">
+                    <div class="action-buttons-grid">
+                        <button class="action-btn checkin-btn" onclick="submitFaceAttendance('checkIn')">
+                            <i data-lucide="log-in"></i>
+                            <span>ยืนยันเข้างาน</span>
+                        </button>
+                        <button class="action-btn checkout-btn" onclick="submitFaceAttendance('checkOut')">
+                            <i data-lucide="log-out"></i>
+                            <span>ยืนยันออกงาน</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Face Registration Screen -->
+        <div id="faceRegistrationScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="stopFaceRegistrationMode()">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <h2>ลงทะเบียนใบหน้าใหม่</h2>
+            </div>
+
+            <div class="form-container">
+                <div class="form-section">
+                    <p class="section-desc">กรุณากรอกเบอร์โทรศัพท์เพื่อค้นหาพนักงานที่จะลงทะเบียนใบหน้า</p>
+                    <div class="form-group">
+                        <div class="input-with-btn">
+                            <input type="tel" id="regPhone" placeholder="08xxxxxxxx" maxlength="10">
+                            <button class="btn-search" onclick="searchForRegistration()">
+                                <i data-lucide="search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="regCameraSection" style="display:none;">
+                    <div class="camera-container-wrapper">
+                        <div class="camera-box" id="regCameraBox">
+                            <video id="regVideo" autoplay muted playsinline></video>
+                        </div>
+
+                        <div id="regStatus" class="scan-status-badge">
+                            <i data-lucide="user"></i>
+                            <span id="regEmployeeName">-</span>
+                        </div>
+
+                        <button id="btnStartEnroll" class="btn-primary" onclick="startEnrollment()" style="width:100%;">
+                            <i data-lucide="camera"></i> เริ่มบันทึกใบหน้า
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Employee Registration Screen (Master Data) -->
+        <div id="registrationScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="stopRegistrationMode()">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <h2>ลงทะเบียนพนักงานใหม่</h2>
+            </div>
+
+            <div class="form-container">
+                <form id="registrationForm" onsubmit="submitRegistration(event)">
+                    <div class="form-section">
+                        <h3 class="section-title">ข้อมูลส่วนตัว</h3>
+                        <div class="form-group">
+                            <label>ชื่อ-นามสกุล</label>
+                            <input type="text" id="regFullName" placeholder="ชื่อ นามสกุล" required>
+                        </div>
+                        <div class="form-group">
+                            <label>เบอร์โทรศัพท์ (เป็น ID ในระบบ)</label>
+                            <input type="tel" id="regFormPhone" placeholder="08xxxxxxxx" maxlength="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label>ซัพพลายเออร์ (ถ้ามี)</label>
+                            <input type="text" id="regSupplier" placeholder="ชื่อบริษัท/สังกัด">
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="section-title">ข้อมูลการเงิน</h3>
+                        <div class="form-group">
+                            <label>ธนาคาร</label>
+                            <select id="regBankName" required>
+                                <option value="">เลือกธนาคาร</option>
+                                <option value="กสิกรไทย">กสิกรไทย (K-Bank)</option>
+                                <option value="ไทยพาณิชย์">ไทยพาณิชย์ (SCB)</option>
+                                <option value="กรุงเทพ">กรุงเทพ (BBL)</option>
+                                <option value="กรุงไทย">กรุงไทย (KTB)</option>
+                                <option value="กรุงศรี">กรุงศรี (BAY)</option>
+                                <option value="ออมสิน">ออมสิน (GSB)</option>
+                                <option value="ทหารไทยธนชาต">ทหารไทยธนชาต (ttb)</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>เลขบัญชีธนาคาร</label>
+                            <input type="text" id="regAccountNumber" placeholder="เลขบัญชี 10 หลัก" required>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="section-title">รูปถ่ายยืนยันตัวตน</h3>
+                        <div class="photo-capture-container">
+                            <div class="photo-box" onclick="captureIdCard()">
+                                <video id="idCardVideo" autoplay muted playsinline style="display:none;"></video>
+                                <img id="idCardPreview" src="" style="display:none;">
+                                <canvas id="idCardCanvas" style="display:none;"></canvas>
+                                <div id="idCardPlaceholder" class="photo-placeholder">
+                                    <i data-lucide="credit-card"></i>
+                                    <span>ถ่ายรูปบัตรประชาชน</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 class="section-title">สแกนใบหน้า (AI Beta)</h3>
+                        <div class="camera-container-wrapper" style="margin-top:0;">
+                            <div class="camera-box" id="regFaceCameraBox"
+                                style="width:200px; height:200px; margin:0 auto;">
+                                <video id="regFaceVideo" autoplay muted playsinline></video>
+                                <div class="face-guide"></div>
+                            </div>
+                            <div id="regFaceStatus" class="scan-status-badge detecting" style="margin-top:10px;">
+                                <i data-lucide="user"></i>
+                                <span>กรุณาส่องหน้า</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnSubmitReg" class="btn-primary" style="margin-top:20px; width:100%;">
+                        <i data-lucide="check-circle"></i> ยืนยันการลงทะเบียน
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Manual Search Screen (Fallback for Face Scan) -->
+        <div id="manualSearchScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="showScreen('faceScanScreen')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <h2>ค้นหาด้วยเบอร์โทร</h2>
+            </div>
+            <div class="form-container">
+                <div class="form-section">
+                    <p class="section-desc" style="margin-bottom: 20px;">ในกรณีที่ AI สแกนใบหน้าไม่ผ่าน
+                        คุณสามารถระบุเบอร์โทรศัพท์เพื่อดึงข้อมูลเดิมมาลงเวลาได้ครับ</p>
+                    <div class="form-group">
+                        <label for="manualSearchPhone">เบอร์โทรศัพท์ที่ลงทะเบียนไว้ <span
+                                class="required">*</span></label>
+                        <div class="input-with-btn">
+                            <input type="tel" id="manualSearchPhone" placeholder="08xxxxxxxx" maxlength="10">
+                            <button type="button" class="btn-search" onclick="performManualSearch()">
+                                <i data-lucide="search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Success Modal -->
         <div id="successModal" class="modal">
             <div class="modal-content success">
@@ -896,7 +1130,7 @@
 
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=4.1"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
